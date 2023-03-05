@@ -53,14 +53,14 @@ void Energy::compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F,
   coefficient_derivative_z.resize(V.rows());
   distance.resize(V.rows());
   dc.resize(V.rows());
-  Mod_Bias.resize(V.rows());
+  //Mod_Bias.resize(V.rows());
   coefficient.setZero();
   coefficient_derivative_x.setZero();
   coefficient_derivative_y.setZero();
   coefficient_derivative_z.setZero();
   distance.setZero();
   dc.setZero();
-  Mod_Bias.setZero();
+  //Mod_Bias.setZero();
   EnergyAdhesion = 0.0;
   EnergyBias = 0.0;
 
@@ -90,7 +90,7 @@ void Energy::compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F,
     coefficient_derivative_z(i) = (U/(distance(i)*rho))
                                 *(-exp(-(2.0*dc(i))/rho) + exp(-dc(i)/rho)) * 2.0 * (V(i,2)-Z);
 
-    if (dc(i) > EPS && std::abs(Kw) > EPS) Mod_Bias(i) = 1.0;
+    // if (dc(i) > EPS && std::abs(Kw) > EPS) Mod_Bias(i) = 1.0;
   }
 
   coefficient_of_derivative.resize(V.rows(), 3);
@@ -109,7 +109,8 @@ void Energy::compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F,
   if (std::abs(Kw) > EPS) {
     dEw = EnergyAdhesion - Ew_t;
     EnergyBias = 0.5 * Kw * dEw * dEw;
-    Force_Biased = Kw * dEw * (Sum.array().colwise() * Mod_Bias.array());
-    Force_Adhesion = First_Term + Second_Term + Force_Biased;
-  } else Force_Adhesion = First_Term + Second_Term; 
+    //Force_Biased = Kw * dEw * (Sum.array().colwise() * Mod_Bias.array());
+    Force_Biased = Kw * dEw * Sum;
+    Force_Adhesion = Sum + Force_Biased;
+  } else Force_Adhesion = Sum; 
 }
