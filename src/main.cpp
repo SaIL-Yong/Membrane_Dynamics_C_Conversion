@@ -8,16 +8,17 @@
 using namespace std::chrono;
 int numV;                                               // number of vertices
 int numF;                                               // number of faces
-Eigen::MatrixXd V;                                      // matrix storing vertice coordinates
-Eigen::MatrixXi F;
+Eigen::MatrixXd V1;                                      // matrix storing vertice coordinates
+Eigen::MatrixXi F1;
 Parameter parameter;
 
 int main() {
   // initialization of simulaiton parameters
   readParameter();
-  igl::readOFF(parameter.meshFile, V, F);
-  numF = F.rows();
-  numV = V.rows();
+  igl::readOFF(parameter.meshFile, V1, F1);
+  igl::readOFF(parameter.particleFile, V2, F2);
+  numF = F1.rows();
+  numV = V1.rows();
 
   // screen and log output of simulation settings
   std::fstream logfile;
@@ -123,7 +124,7 @@ int main() {
     
     // position of the particle
     if (!parameter.particle_coord_flag) {
-      X0 = 0.0, Y0 = 0.0, Z0 = V.col(2).maxCoeff() + parameter.particle_position * (Rp + 1.0*rho);
+      X0 = 0.0, Y0 = 0.0, Z0 = V1.col(2).maxCoeff() + parameter.particle_position * (Rp + 1.0*rho);
     }
     else {
       X0 = parameter.X0, Y0 = parameter.Y0, Z0 = parameter.Z0;
@@ -219,11 +220,11 @@ int main() {
   int toln = 0;
   for (i = 0; i < iterations; i++)
   {
-    M1.mesh_cal(V, F);
-    E1.compute_bendingenergy_force(V, F, Kb, Force_Bending, EnergyBending, M1);
-    E1.compute_areaenergy_force(V, F, Ka, area_target, Force_Area, EnergyArea, M1);
-    E1.compute_volumeenergy_force(V, F, Kv, volume_target, Force_Volume, EnergyVolume, M1);
-    if (particle_flag) E1.compute_adhesion_energy_force(V, F, X0, Y0, Z0, Rp, rho, U, rc, angle_flag, particle_position, Ew_t, Kw, Force_Adhesion, EnergyAdhesion, EnergyBias, M1);
+    M1.mesh_cal(V1, F1);
+    E1.compute_bendingenergy_force(V1, F1, Kb, Force_Bending, EnergyBending, M1);
+    E1.compute_areaenergy_force(V1, F1, Ka, area_target, Force_Area, EnergyArea, M1);
+    E1.compute_volumeenergy_force(V1, F1, Kv, volume_target, Force_Volume, EnergyVolume, M1);
+    if (particle_flag) E1.compute_adhesion_energy_force(V1, F1, X0, Y0, Z0, Rp, rho, U, rc, angle_flag, particle_position, Ew_t, Kw, Force_Adhesion, EnergyAdhesion, EnergyBias, M1);
 
     EnergyTotal = EnergyBending + EnergyArea + EnergyVolume + EnergyAdhesion + EnergyBias;
     Force_Total = Force_Bending + Force_Area + Force_Volume + Force_Adhesion;
@@ -274,20 +275,20 @@ int main() {
     if (i % dumpfrequency == 0) {
       char dumpfilename[128];
       sprintf(dumpfilename, "dump%08d.off", i);
-	    igl::writeOFF(dumpfilename, V, F);
+	    igl::writeOFF(dumpfilename, V1, F1);
 	  }
 
-    if (i % resfrequency == 0) igl::writeOFF(parameter.resFile, V, F);
+    if (i % resfrequency == 0) igl::writeOFF(parameter.resFile, V1, F1);
 
     velocity = Force_Total / gamma;
-    V += velocity * dt;
+    V1 += velocity * dt;
 
     if (v_smooth_flag || delaunay_tri_flag) {
       if ((i+1) % mesh_reg_frequency == 0) {
-        if (v_smooth_flag) V = M1.vertex_smoothing(V, F);
+        if (v_smooth_flag) V1 = M1.vertex_smoothing(V1, F1);
         if (delaunay_tri_flag) {
-          igl::edge_lengths(V, F, l);
-          igl::intrinsic_delaunay_triangulation(l, F, l, F);
+          igl::edge_lengths(V1, F1, l);
+          igl::intrinsic_delaunay_triangulation(l, F1, l, F1);
         }
       }
     }
@@ -319,7 +320,7 @@ int main() {
   logfile<<"Total run time: "<<duration.count()<<" mins"<<std::endl;
   logfile.close();
       
-  igl::writeOFF(parameter.outFile, V, F);
+  igl::writeOFF(parameter.outFile, V1, F1);
 
   //Storing force components to text file after equilibrium
   std::ofstream file1("Adhesion_Force.txt");
@@ -426,6 +427,8 @@ void readParameter()
   }
   getline(runfile, line);
   getline(runfile, parameter.meshFile);
+  getline(runfile, line);
+  getline(runfile, parameter.particleFile);
   getline(runfile, line);
   getline(runfile, parameter.outFile);
   getline(runfile, line);

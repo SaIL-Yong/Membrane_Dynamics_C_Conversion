@@ -11,29 +11,26 @@
 #include <igl/gaussian_curvature.h>
 #include <Eigen/Dense>
 #include "meshops.h"
+#include "meshedparticle.h"
 #ifndef PI
 #define PI 3.14159265358979323846
 #endif
 #ifndef EPS
-#define EPS 1.0e-10
+const double EPS=1.0e-10;
 #endif
 
 class Energy {
  public:
-  // float rp=parameter.particle_radious;
-  // float u=parameter.adhesion_strength;
-  // float rho=(parameter.potential_range)*rp;
-  // float U=(bending_modulus*u)/(pow(rp,2)) ;
-      //float X,Y,Z,rp,u,rho,U;
+ 
   void compute_bendingenergy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, double Kb, Eigen::MatrixXd& Force_Bending, double& bending_energy, Mesh m);
   void compute_areaenergy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, double Ka, double area_target, Eigen::MatrixXd& Force_Area, double& area_energy, Mesh m);
   void compute_volumeenergy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, double Kv, double volume_target, Eigen::MatrixXd& Force_Volume, double& volume_energy, Mesh m);
-  //Eigen::VectorXd area_voronoi;
-  //void compute_localareaenergy_force(Eigen::MatrixXd V,Eigen::MatrixXi F,Eigen::MatrixXd& Force_Local_Area,double& local_area_energy);
-  //void dosomething();
-  void compute_adhesion_energy_force(Eigen::MatrixXd V,Eigen::MatrixXi F, double X, double Y, double Z,
-                                     double rp, double rho, double U, double rc, int angle_flag, int particle_position, double Ew_t, double Kw,
-                                     Eigen::MatrixXd& Force_Adhesion, double& EnergyAdhesion, double& E_bias, Mesh m);
+  
+  void compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, Eigen::MatrixXd V_particle, Eigen::MatrixXi F_particle,double rho, double U,
+                                           Eigen::MatrixXd& Force_Adhesion,std::vector<std::pair<int, int>> bonds, double& EnergyAdhesion,  Mesh m);
+ // void compute_adhesion_energy_force(Eigen::MatrixXd V,Eigen::MatrixXi F, double X, double Y, double Z,
+ //                                    double rp, double rho, double U, double rc, int angle_flag, int particle_position, double Ew_t, double Kw,
+ //                                    Eigen::MatrixXd& Force_Adhesion, double& EnergyAdhesion, double& E_bias, Mesh m);
 
  private:
   // variables for bending energy force calculation

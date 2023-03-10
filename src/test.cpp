@@ -1,212 +1,180 @@
 #include <iostream>
-#include <fstream>
-#include <chrono>
-#include <cmath>
-#include <igl/edges.h>
-#include <igl/grad.h>
-#include <igl/triangle_triangle_adjacency.h>
-#include <Eigen/Geometry>
-#include <vector>
-#include <igl/intrinsic_delaunay_triangulation.h>
+#include <igl/readOFF.h>
 #include <igl/writeOFF.h>
-#include "meshops.h"
-#include "energy.h"
-#include "parameters.h"
-using namespace std::chrono;
-int numV;                                               // number of vertices
-int numF;                                               // number of faces
-double area_avg;                                        // average area of each triangle mesh
-Eigen::MatrixXd V,V_new,F_normals;                                      // matrix storing vertice coordinates
-Eigen::MatrixXi F;
-Parameter parameter;
-int main(){
-    readParameter();
-    std::string filename = parameter.meshFile;
-    std::string resfilename = parameter.resFile;
-    std::string outfilename = parameter.outFile;
-    igl::readOFF(filename, V, F);
-    numF = F.rows();
-    numV = V.rows();
-////
+#include <igl/knn.h>
+#include <Eigen/Core>
+#include <vector>
 
-    float bending_modulus=parameter.Kb;
-    float rp=parameter.particle_radious;
-    float u=parameter.adhesion_strength;
-    float rho=(parameter.potential_range)*rp;
-    float U=(bending_modulus*u)/(pow(rp,2)) ;
-    float rc=5*rho;
-    float X=V.maxCoeff()+rp+rho*1,Y=0.0,Z=0.0;
-    float chi=parameter.wrapping_fraction;
-    float Area_w_t=chi*4.0*PI*(pow(rp,2));
-    float Ew_t=-U*Area_w_t;
-    float K_bias=10.0;
+typedef Eigen::MatrixXd MatrixXd;
+typedef Eigen::MatrixXi MatrixXi;
+typedef Eigen::VectorXi VectorXi;
+typedef Eigen::VectorXd VectorXd;
 
-/////
-    float reduced_volume=parameter.reduced_volume;
-    Energy E1;
-    Eigen::MatrixXd Force_Area,Force_Volume,Force_Bending,Force_Adhesion,velocity,ForceTotal; //forces
-
-    double EnergyVolume,EnergyArea,EnergyBending,EnergyTotal,EnergyAdhesion,EnergyTotal_new, EnergyChange;  //energies
-    //
-    E1.compute_bendingenergy_force(V,F,Force_Bending,EnergyBending);
-    E1.compute_areaenergy_force(V,F,Force_Area,EnergyArea);
-    E1.compute_volumeenergy_force(V,F,reduced_volume,Force_Volume,EnergyVolume);
-    E1.compute_adhesion_energy_force(V,F,X,Y,Z,rp,rho,u,U,rc,Ew_t,K_bias,Force_Adhesion,EnergyAdhesion);
-
-    EnergyTotal=EnergyBending+EnergyArea+EnergyVolume+EnergyAdhesion;
-    //
-    // float chi=parameter.wrapping_fraction;
-    // float Area_w_t=chi*4.0*PI*(pow(rp,2));
-    // double Ew_t=-U*Area_w_t;
-    // std::cout<<"Biased-Energy::"<<Area_w_t<<std::endl;
-    // std::cout<<"Biased-Energy::"<<Ew_t<<std::endl;
-    // std::vector<std::vector<double> > VF;
-    // std::vector<std::vector<double> > VFi;
-    // igl::vertex_triangle_adjacency(V,F,VF, VFi);
-    // for (int i = 0; i < 2; i++){
-    // for (int j = 0; j < VF[i].size(); j++){
-    //     std::cout << "Adjacent Faces::"<<VF[i][j]<< " " ;}
-    // std::cout <<std::endl;}
-    // for (int i = 0; i < 2; i++){
-    // for (int j = 0; j < VFi[i].size(); j++){
-    //     std::cout << VFi[i][j]<< " " ;}
-    // std::cout <<std::endl;}
-    // std::vector<std::vector<double> > A;
-    // igl::adjacency_list(F,A);
-    // for (int i = 0; i < 2; i++){
-    // for (int j = 0; j < A[i].size(); j++){
-    //     std::cout << "Adjacent Vertices:"<<A[i][j]<< " " ;}
-    // std::cout <<std::endl;}
-    //Eigen::MatrixXd Mod_Bias= Eigen::MatrixXd::Zero(V.rows(),3);
-    //std::cout<<"Matrix::"<<Mod_Bias<<std::endl;
-
-    //std::cout<<"Vertices::"<<VFi[0][1]<<std::endl;
-}
-void readParameter(){
-    std::string line;
-    std::ifstream runfile;
-    runfile.open("run_file.txt");
-    getline(runfile, line);
-    runfile >> parameter.iterations;
-    getline(runfile, line);
-    getline(runfile, line);
-    runfile >> parameter.dt;
-    getline(runfile, line);
-    getline(runfile, line);
-    runfile >> parameter.Kb;
-    getline(runfile, line);
-    getline(runfile, line);
-    runfile >> parameter.Ka;
-    getline(runfile, line);
-    getline(runfile, line);
-    runfile >> parameter.Kv;
-    getline(runfile, line);
-    getline(runfile, line);
-    runfile >> parameter.reduced_volume;
-    getline(runfile, line);
-    getline(runfile, line);
-    runfile >> parameter.tolerance;
-    getline(runfile, line);
-    getline(runfile, line);
-    runfile >> parameter.gamma;
-    getline(runfile, line);
-    getline(runfile, line);
-    runfile >> parameter.particle_radious;
-    getline(runfile, line);
-    getline(runfile, line);
-    runfile >> parameter.adhesion_strength;
-    getline(runfile, line);
-    getline(runfile, line);
-    runfile >> parameter.potential_range;
-    getline(runfile, line);
-    getline(runfile, line);
-    runfile >> parameter.wrapping_fraction;
-    getline(runfile, line);
-    getline(runfile, line);
-    getline(runfile, parameter.meshFile);
-    getline(runfile, line);
-    getline(runfile, parameter.outFile);
-    getline(runfile, line);
-    getline(runfile, parameter.resFile);
-    getline(runfile, line);
+// Find nearest neighbor of each vertex in V1 in V2
+void find_nearest_neighbors(const MatrixXd& V1, const MatrixXd& V2,
+                             VectorXi& nearest) {
+    igl::knn(V1, V2, 1, nearest);
 }
 
+int main()
+{
+    MatrixXd V1, V2; // Input vertices
+    MatrixXi F1, F2; // Input faces (not used in this example)
+    VectorXi nearest; // Nearest neighbor of each vertex in V1 in V2
+    std::vector<std::pair<int, int>> bonds; // Bond connections between V1 and V2
+    
+    // Load input meshes from OFF files
+    igl::readOFF("equilibrated.off", V1, F1);
+    igl::readOFF("particle.off", V2, F2);
+    
+    // Find nearest neighbor of each vertex in V1 in V2
+    find_nearest_neighbors(V1, V2, nearest);
+    
+    // Create bond connections between V1 and V2 based on distance
+    for (int i = 0; i < V1.rows(); i++) {
+        int j = nearest(i);
+        double dist = (V1.row(i) - V2.row(j)).norm();
+        if (dist < threshold) { // Only create bond if distance is less than threshold
+            bonds.push_back(std::make_pair(i, j));
+        }
+    }
+    
+    // Save output mesh with bond connections
+    igl::writeOFF("output.off", V1, F1, bonds);
+    
+    return 0;
+}
+
+// #include <iostream>
+// #include <fstream>
+// #include <chrono>
+// #include <cmath>
 // #include "meshops.h"
 // #include "energy.h"
 // #include "parameters.h"
+// #include "meshedparticle.h"
 // using namespace std::chrono;
 // int numV;                                               // number of vertices
 // int numF;                                               // number of faces
-// double area_avg;                                        // average area of each triangle mesh
-// Eigen::MatrixXd V,V_new,area_voronoi;                                      // matrix storing vertice coordinates
-// Eigen::MatrixXi F;
-// Eigen::VectorXd dblA;
+// Eigen::MatrixXd V1,V2;                                      // matrix storing vertice coordinates
+// Eigen::MatrixXi F1,F2;
 // Parameter parameter;
-//
-// int main(){
+
+// int main()
+// {   
 //     readParameter();
-//     std::string filename = parameter.meshFile;
-//     igl::readOFF(filename, V, F);
-//     numF = F.rows();
-//     numV = V.rows();
-//     //igl::doublearea(V,F,dblA);
-//     int iterations=parameter.iterations;
-//     int logfrequency=100;
-//     Eigen::MatrixXd ForceArea,ForceVolume,ForceBending,velocity,ForceTotal; //forces
-//
-//     double dt=parameter.dt; //time step
-//     double gamma=parameter.gamma;
-//     double tolerance=parameter.tolerance;
-//     float reduced_volume=parameter.reduced_volume;
-//     double EnergyVolume,EnergyArea,EnergyBending,EnergyTotal,EnergyTotal_new, EnergyChange;  //energies
-//
-//     Mesh M1;
-//     Energy E1;
-//     E1.compute_bendingenergy_force(V,F,ForceBending,EnergyBending);
-//     E1.compute_areaenergy_force(V,F,ForceArea,EnergyArea);
-//     E1.compute_volumeenergy_force(V,F,reduced_volume,ForceVolume,EnergyVolume);
-//     EnergyTotal=EnergyBending+EnergyArea+EnergyVolume;
-//     ForceTotal=ForceBending+ForceArea+ForceVolume;
-//     std::cout<<"Bending Energy \n"<< EnergyBending<<std::endl;
-//     std::cout<<"\n reduced_volume "<< reduced_volume<<std::endl;
-//     //std::cout<<"\n force_area "<<ForceArea<<std::endl;
-//
-//
+//     // Load two meshes
+//     igl::readOFF(parameter.meshFile, V1, F1);
+//     igl::readOFF(parameter.particleFile, V2, F2);
+//     // Find vertex correspondence based on distance
+//     ParticleAdhesion P1;
+//     std::vector<std::pair<int, int>> pairs;
+//     double distance_threshold = 0.1;
+//     P1.find_pairs(V1, V2, F1,F2,distance_threshold, pairs);
+//     // Write output
+//     std::ofstream out("correspondence_pairs.txt");
+//     for (const auto& p : pairs) {
+//         out << p.first << "" << p.second << std::endl;
+//     }
+//     out.close();
+//     return 0;
 // }
-//
-// void readParameter(){
-//     std::string line;
-//     std::ifstream runfile;
-//     runfile.open("run_file.txt");
+// void readParameter()
+// {
+//   std::string line;
+//   std::ifstream runfile;
+//   runfile.open("run_parameters.txt");
+//   if (!runfile.is_open()) std::cout<<"ERROR: cannot access simlation parameter file."<<std::endl;
+//   getline(runfile, line);
+//   runfile >> parameter.iterations;
+//   getline(runfile, line);
+//   getline(runfile, line);
+//   runfile >> parameter.dt;
+//   getline(runfile, line);
+//   getline(runfile, line);
+//   runfile >> parameter.Kb;
+//   getline(runfile, line);
+//   getline(runfile, line);
+//   runfile >> parameter.Ka;
+//   getline(runfile, line);
+//   getline(runfile, line);
+//   runfile >> parameter.Kv;
+//   getline(runfile, line);
+//   getline(runfile, line);
+//   runfile >> parameter.reduced_volume;
+//   getline(runfile, line);
+//   getline(runfile, line);
+//   runfile >> parameter.tolerance;
+//   getline(runfile, line);
+//   getline(runfile, line);
+//   runfile >> parameter.tolerance_flag;
+//   getline(runfile, line);
+//   getline(runfile, line);
+//   runfile >> parameter.tolfrequency;  // in units of sim. time (iteration * timestep)
+//   getline(runfile, line);
+//   getline(runfile, line);
+//   runfile >> parameter.gamma;
+//   getline(runfile, line);
+//   getline(runfile, line);
+//   runfile >> parameter.particle_flag;
+//   getline(runfile, line);
+//   if (parameter.particle_flag) {
 //     getline(runfile, line);
-//     runfile >> parameter.iterations;
+//     runfile >> parameter.particle_position;
 //     getline(runfile, line);
 //     getline(runfile, line);
-//     runfile >> parameter.dt;
+//     if (line.compare("particle_coordinate") == 0) {
+//       runfile >> parameter.X0 >> parameter.Y0 >> parameter.Z0;
+//       parameter.particle_coord_flag = 1;
+//       getline(runfile, line);
+//       getline(runfile, line);
+//     }
+//     else parameter.particle_coord_flag = 0;
+//     runfile >> parameter.particle_radius;
 //     getline(runfile, line);
 //     getline(runfile, line);
-//     runfile >> parameter.Kb;
+//     runfile >> parameter.adhesion_strength;
 //     getline(runfile, line);
 //     getline(runfile, line);
-//     runfile >> parameter.Ka;
+//     runfile >> parameter.potential_range;
 //     getline(runfile, line);
 //     getline(runfile, line);
-//     runfile >> parameter.Kv;
+//     runfile >> parameter.angle_condition_flag;
 //     getline(runfile, line);
 //     getline(runfile, line);
-//     runfile >> parameter.reduced_volume;
+//     runfile >> parameter.forced_wrapping_flag;
 //     getline(runfile, line);
 //     getline(runfile, line);
-//     runfile >> parameter.tolerance;
+//     runfile >> parameter.wrapping_fraction;
 //     getline(runfile, line);
 //     getline(runfile, line);
-//     runfile >> parameter.gamma;
+//     runfile >> parameter.wrapping_bias_strength;
 //     getline(runfile, line);
-//     getline(runfile, line);
-//     getline(runfile, parameter.meshFile);
-//     getline(runfile, line);
-//     getline(runfile, parameter.outFile);
-//     getline(runfile, line);
-//     getline(runfile, parameter.resFile);
-//     getline(runfile, line);
+//   }
+//   getline(runfile, line);
+//   getline(runfile, parameter.meshFile);
+//   getline(runfile, line);
+//   getline(runfile, parameter.particleFile);
+//   getline(runfile, line);
+//   getline(runfile, parameter.outFile);
+//   getline(runfile, line);
+//   getline(runfile, parameter.resFile);
+//   getline(runfile, line);
+//   runfile >> parameter.logfrequency;
+//   getline(runfile, line);
+//   getline(runfile, line);
+//   runfile >> parameter.dumpfrequency;
+//   getline(runfile, line);
+//   getline(runfile, line);
+//   runfile >> parameter.resfrequency;
+//   getline(runfile, line);
+//   getline(runfile, line);
+//   runfile >> parameter.mesh_reg_frequency;
+//   getline(runfile, line);
+//   getline(runfile, line);
+//   runfile >> parameter.vertex_smoothing_flag;
+//   getline(runfile, line);
+//   getline(runfile, line);
+//   runfile >> parameter.delaunay_triangulation_flag;
+//   runfile.close();
 // }
