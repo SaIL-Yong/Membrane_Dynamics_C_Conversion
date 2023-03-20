@@ -39,7 +39,7 @@ forced_wrapping_constant
 meshfile
 ./equilibrated.off
 particlefile
-./particle.off
+./particle_sphere.off
 outfile
 ./equilibrium.off
 resfile

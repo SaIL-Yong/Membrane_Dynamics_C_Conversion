@@ -8,8 +8,8 @@
 using namespace std::chrono;
 int numV;                                               // number of vertices
 int numF;                                               // number of faces
-Eigen::MatrixXd V1;                                      // matrix storing vertice coordinates
-Eigen::MatrixXi F1;
+Eigen::MatrixXd V1,V2;                                      // matrix storing vertice coordinates
+Eigen::MatrixXi F1,F2;
 Parameter parameter;
 
 int main() {
@@ -17,8 +17,11 @@ int main() {
   readParameter();
   igl::readOFF(parameter.meshFile, V1, F1);
   igl::readOFF(parameter.particleFile, V2, F2);
+  
   numF = F1.rows();
   numV = V1.rows();
+  Eigen::VectorXi nearest;              // Nearest neighbor of each vertex in V1 in V2
+  std::vector<std::pair<int, int>> bonds;
 
   // screen and log output of simulation settings
   std::fstream logfile;
@@ -123,12 +126,17 @@ int main() {
     }
     
     // position of the particle
-    if (!parameter.particle_coord_flag) {
-      X0 = 0.0, Y0 = 0.0, Z0 = V1.col(2).maxCoeff() + parameter.particle_position * (Rp + 1.0*rho);
-    }
-    else {
-      X0 = parameter.X0, Y0 = parameter.Y0, Z0 = parameter.Z0;
-    }
+    // if (!parameter.particle_coord_flag) {
+    //   X0 = 0.0, Y0 = 0.0, Z0 = V1.col(2).maxCoeff() + parameter.particle_position * (Rp + 1.0*rho);
+    // }
+    // else {
+    //   X0 = parameter.X0, Y0 = parameter.Y0, Z0 = parameter.Z0;
+    // }
+    double Z0 = V1.col(2).maxCoeff() + (parameter.particle_position * rho);
+    Eigen::ArrayXd v2_col = V2.col(2).array();
+    v2_col += Z0;
+    V2.col(2) = v2_col.matrix();
+
 
     std::cout<<"Particle position: "<<X0<<", "<<Y0<<", "<<Z0<<std::endl;
     std::cout<<"Particle radius: "<<Rp<<std::endl;
@@ -188,6 +196,10 @@ int main() {
     std::cout<<"Mesh regularization frequency: "<<mesh_reg_frequency<<"\n"<<std::endl;
     logfile<<"Mesh regularization frequency: "<<mesh_reg_frequency<<"\n"<<std::endl;
   }
+  double distance_threshold = 0.20;
+  // Calculate the distances between each pair of vertices
+  ParticleAdhesion P1;
+  P1.find_pairs(V1, F1, V2, F2, distance_threshold, bonds);
 
   Mesh M1;
   Energy E1;
@@ -224,7 +236,8 @@ int main() {
     E1.compute_bendingenergy_force(V1, F1, Kb, Force_Bending, EnergyBending, M1);
     E1.compute_areaenergy_force(V1, F1, Ka, area_target, Force_Area, EnergyArea, M1);
     E1.compute_volumeenergy_force(V1, F1, Kv, volume_target, Force_Volume, EnergyVolume, M1);
-    if (particle_flag) E1.compute_adhesion_energy_force(V1, F1, X0, Y0, Z0, Rp, rho, U, rc, angle_flag, particle_position, Ew_t, Kw, Force_Adhesion, EnergyAdhesion, EnergyBias, M1);
+    E1.compute_adhesion_energy_force(V1, F1, V2, F2, rho, U, Force_Adhesion, bonds, EnergyAdhesion, M1);
+    //if (particle_flag) E1.compute_adhesion_energy_force(V1, F1, X0, Y0, Z0, Rp, rho, U, rc, angle_flag, particle_position, Ew_t, Kw, Force_Adhesion, EnergyAdhesion, EnergyBias, M1);
 
     EnergyTotal = EnergyBending + EnergyArea + EnergyVolume + EnergyAdhesion + EnergyBias;
     Force_Total = Force_Bending + Force_Area + Force_Volume + Force_Adhesion;
@@ -301,6 +314,7 @@ int main() {
 
   auto end = system_clock::now();
   auto duration = duration_cast<minutes>(end - start);
+  //main loop ends here
 
   // logfile output
   logfile<<i<<"  ";

@@ -24,7 +24,7 @@ for (int i = 0; i < V.rows(); i++) {
         nearest(i) = nearest_index;
     }
 }
-std::cout << nearest<< std::endl;
+//std::cout << nearest<< std::endl;
 // Create bond connections based on nearest neighbors
 //std::vector<std::pair<int, int>> bonds;
 for (int i = 0; i < V.rows(); i++) {
@@ -41,3 +41,29 @@ for (int i = 0; i < V.rows(); i++) {
 // }   
 //return bonds;
 }
+
+/*
+#include <igl/kdtree/kdtree.h>
+
+void find_pairs_2(const Eigen::MatrixXd& V1, const Eigen::MatrixXd& V2, double distance_threshold, std::vector<std::pair<int, int>>& bonds)
+{
+    // Build a k-d tree for V2
+    igl::AABB<Eigen::MatrixXd, 3> tree;
+    tree.init(V2);
+
+    // Search for nearest neighbors of each vertex in V1 in the k-d tree
+    std::vector<int> nearest_indices;
+    std::vector<double> nearest_dists2;
+    nearest_indices.resize(V1.rows());
+    nearest_dists2.resize(V1.rows());
+    tree.squared_distance(V1, nearest_indices, nearest_dists2);
+
+    // Create bond connections based on nearest neighbors
+    bonds.clear();
+    for (int i = 0; i < V1.rows(); i++) {
+        if (nearest_dists2[i] < distance_threshold*distance_threshold) {
+            bonds.emplace_back(i, nearest_indices[i]);
+        }
+    }
+}
+*/
