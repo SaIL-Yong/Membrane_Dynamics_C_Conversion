@@ -14,6 +14,7 @@ void Mesh::mesh_cal(Eigen::MatrixXd V, Eigen::MatrixXi F)
   igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_VORONOI, M);
   igl::invert_diag(M, Minv);
   igl::gaussian_curvature(V, F, K);
+  
 
   K = (Minv * K).eval();
   HN = -Minv * (L * V) / 2.0;

@@ -40,7 +40,7 @@ void Energy::compute_volumeenergy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, do
     Force_Volume = scalar_term * VG;
   }
 }
-void Energy::compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, Eigen::MatrixXd V_particle, Eigen::MatrixXi F_particle,double rho, double U,
+void Energy::compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, Eigen::MatrixXd V_particle, Eigen::MatrixXi F_particle,double rho, double U,double r_equilibrium,double epsilon,double sigma,
                                            Eigen::MatrixXd& Force_Adhesion,std::vector<std::pair<int, int>> bonds, double& EnergyAdhesion,  Mesh m)
 {
   Force_Adhesion.setZero();
@@ -49,54 +49,62 @@ void Energy::compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F,
   coefficient_derivative_y.resize(V.rows());
   coefficient_derivative_z.resize(V.rows());
   distance.resize(V.rows());
-  dc.resize(V.rows());
+  lennard_jones_force.resize(V.rows(),3);
+  lennard_jones_potential.resize(V.rows());
+  //dc.resize(V.rows());
   //Mod_Bias.resize(V.rows());
   coefficient.setZero();
   coefficient_derivative_x.setZero();
   coefficient_derivative_y.setZero();
   coefficient_derivative_z.setZero();
   distance.setZero();
-  dc.setZero();
+  lennard_jones_force.setZero();
+  lennard_jones_potential.setZero();
 
-
-  // vector connecting cetner of the particle and to the vertices;
-  //comvec = V.rowwise() - particle_center;
-  double distance_threshold = 0.20;
-  //std::vector<std::pair<int, int>> bonds; 
-  ParticleAdhesion P1;
-  P1.find_pairs(V,F,V_particle,F_particle,distance_threshold,bonds);
 
   // can this loop be replaced by the eigen operation?
+
   for (int i = 0; i <bonds.size(); i++) {
-    //distance(i) = sqrt((V(i,0)-X)*(V(i,0)-X)+(V(i,1)-Y)*(V(i,1)-Y)+(V(i,2)-Z)*(V(i,2)-Z));
-    dc(bonds[i].first) = sqrt((V(bonds[i].first,0)-(V_particle(bonds[i].second,0)))*(V(bonds[i].first,0)-(V_particle(bonds[i].second,0)))+
-    (V(bonds[i].first,1)-(V_particle(bonds[i].second,1)))*(V(bonds[i].first,1)-(V_particle(bonds[i].second,1)))+
-    (V(bonds[i].first,2)-(V_particle(bonds[i].second,2)))*(V(bonds[i].first,2)-(V_particle(bonds[i].second,2))));
+    //distance(bonds[i].first) = sqrt((V(i,0)-particle_centroid.x())*(V(i,0)-particle_centroid.x())+(V(i,1)-particle_centroid.y())*(V(i,1)-particle_centroid.y())
+    //+(V(i,2)-particle_centroid.z())*(V(i,2)-particle_centroid.z()));
+    dx=(V(bonds[i].first,0)-(V_particle(bonds[i].second,0)));
+    dy=(V(bonds[i].first,1)-(V_particle(bonds[i].second,1)));
+    dz=(V(bonds[i].first,2)-(V_particle(bonds[i].second,2)));
 
-    // angle between connecting vector and vertex normal
-    //angle = acos((comvec.row(i)).dot(m.V_normals.row(i)) / (comvec.row(i).norm() * m.V_normals.row(i).norm()));
+    //dc(bonds[i].first) =  sqrt(dx*dx + dy*dy +dz*dz) - r_equilibrium;
+    r_ij=(V.row((bonds[i].first)) - V_particle.row((bonds[i].second)));
+    dc = r_ij.norm();
+    dc_mag=r_ij.squaredNorm();
+    r_ij_transpose= r_ij.transpose();
+    //std::cout<<"r_ij vector form:"<<r_ij_transpose<<std::endl;
+
+    coefficient.row(bonds[i].first) << U * (exp(-(2.0*dc)/rho) - 2.0*(exp(-dc)));
+    coefficient_derivative_x.row(bonds[i].first) << (U/(dc*rho))
+                                *(-exp(-(2.0*dc)/rho) + exp(-dc/rho)) * 2.0 * dx;
+    coefficient_derivative_y.row(bonds[i].first) << (U/(dc*rho))
+                                *(-exp(-(2.0*dc)/rho) + exp(-dc/rho)) * 2.0 * dy;
+    coefficient_derivative_z.row(bonds[i].first) << (U/(dc*rho))
+                                *(-exp(-(2.0*dc)/rho) + exp(-dc/rho)) * 2.0 * dz;
+
     
-    // if (std::abs(dc(i)) > rc) continue;
-    // if (angle_flag) {
-    //   if (particle_position > 0 && angle <= 0.5*PI) continue;
-    //   if (particle_position < 0 && angle >= 0.5*PI) continue;
-    // }
+    s_by_r6 = pow(sigma / dc, 6.0);
+    //double pot = 4.0 * eps * (pow(s_by_r6, 2.0) - s_by_r6);
+    if (dc>= (pow(2,(1.0/6.0))*sigma)){
+      lennard_jones_potential.row(bonds[i].first) << 0.0;
+      lennard_jones_force.row(bonds[i].first).setZero();     
+    }else{
+    lennard_jones_potential.row(bonds[i].first) << 4.0 * epsilon * (pow(s_by_r6, 2.0) - s_by_r6);
+    lennard_jones_force.row(bonds[i].first) += 24.0 * (epsilon / dc_mag) * (2.0 * pow(s_by_r6, 2.0) - s_by_r6) * (r_ij_transpose/dc_mag );                    
+    }           
 
-    coefficient.row(bonds[i].first) << U * (exp(-(2.0*dc(bonds[i].first))/rho) - 2.0*(exp(-dc(bonds[i].first)/rho)));
-    coefficient_derivative_x.row(bonds[i].first) << (U/dc(bonds[i].first)*rho)
-                                *(-exp(-(2.0*dc(bonds[i].first))/rho) + exp(-dc(bonds[i].first)/rho)) * 2.0 * (V(bonds[i].first,0)-(V_particle(bonds[i].second,0)));
-    coefficient_derivative_y.row(bonds[i].first) << (U/(dc(bonds[i].first)*rho))
-                                *(-exp(-(2.0*dc(bonds[i].first))/rho) + exp(-dc(bonds[i].first)/rho)) * 2.0 * (V(bonds[i].first,1)-(V_particle(bonds[i].second,1)));
-    coefficient_derivative_z.row(bonds[i].first) << (U/dc(bonds[i].first)*rho)
-                                *(-exp(-(2.0*dc(bonds[i].first))/rho) + exp(-dc(bonds[i].first)/rho)) * 2.0 * (V(bonds[i].first,2)-(V_particle(bonds[i].second,2)));
-
-    // if (dc(i) > EPS && std::abs(Kw) > EPS) Mod_Bias(i) = 1.0;
   }
   //std::cout<<coefficient<<std::endl;
   coefficient_of_derivative.resize(V.rows(), 3);
   coefficient_of_derivative.col(0)=coefficient_derivative_x.transpose();
   coefficient_of_derivative.col(1)=coefficient_derivative_y.transpose();
   coefficient_of_derivative.col(2)=coefficient_derivative_z.transpose();
+  lennard_jones_force.resize(V.rows(), 3);
+  lennard_jones_potential.resize(V.rows());
   
   First_Term = -(AG.array().colwise()*coefficient.array());
   Second_Term = -(coefficient_of_derivative.array().colwise()*m.area_voronoi.array());
@@ -104,9 +112,18 @@ void Energy::compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F,
   Sum = First_Term + Second_Term;
   Ead = coefficient.array()*m.area_voronoi.array();
 
-  EnergyAdhesion = Ead.sum();
 
-  Force_Adhesion = Sum; 
+  //std::cout<<"lennard jone potential"<<lennard_jones_potential<<std::endl;
+  //Force_Adhesion = Sum;
+
+  if (epsilon > 0.0) {
+
+  Force_Adhesion = Sum+lennard_jones_force;
+  EnergyAdhesion = Ead.sum()+lennard_jones_potential.sum();
+  }else {
+  EnergyAdhesion = Ead.sum();
+  Force_Adhesion = Sum;
+  }
 }
 
 // void Energy::compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, double X, double Y, double Z,

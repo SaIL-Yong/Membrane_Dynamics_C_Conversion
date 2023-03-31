@@ -20,8 +20,12 @@ int main() {
   
   numF = F1.rows();
   numV = V1.rows();
+  int numFp = F2.rows();
+  int numVp = V2.rows();
+
   Eigen::VectorXi nearest;              // Nearest neighbor of each vertex in V1 in V2
   std::vector<std::pair<int, int>> bonds;
+  double distance_threshold = 0.20;
 
   // screen and log output of simulation settings
   std::fstream logfile;
@@ -36,6 +40,7 @@ int main() {
   int iterations = parameter.iterations;
   int logfrequency = parameter.logfrequency;
   int dumpfrequency = parameter.dumpfrequency;
+  int bondfrequency=parameter.bondfrequency;
   int resfrequency = parameter.resfrequency;
   double dt = parameter.dt, time = 0.0;
   double tolerance = parameter.tolerance;
@@ -50,6 +55,7 @@ int main() {
 
   std::cout<<"Mesh info:"<<std::endl;
   std::cout<<"Number of vertices: "<<numV<<" Number of faces: "<<numF<<"\n"<<std::endl;
+  std::cout<<"Number of particle vertices: "<<numVp<<" Number of paticle faces: "<<numFp<<"\n"<<std::endl;
   std::cout<<"Max number of iterations: "<<iterations<<std::endl;
   std::cout<<"Log output frequency: "<<logfrequency<<std::endl;
   std::cout<<"Mesh dump frequency: "<<dumpfrequency<<std::endl;
@@ -106,13 +112,16 @@ int main() {
   // parameters for particle adhesion
   int particle_flag = parameter.particle_flag;
   int particle_position = parameter.particle_position;
-  double Rp, u, U, rho, rc, X0, Y0, Z0, Ew_t, Kw;
+  double Rp, u, U, rho, rc, X0, Y0, Z0, Ew_t, Kw,r_equilibrium,epsilon,sigma;
   int angle_flag;
   if (particle_flag) {
     Rp = parameter.particle_radius;
     u = parameter.adhesion_strength;
     U = (Kb * u) / (Rp * Rp);
     rho =  parameter.potential_range;
+    r_equilibrium=parameter.r_equilibrium;
+    epsilon=parameter.epsilon;
+    sigma=parameter.sigma;
     rc = 5.0*rho;
     angle_flag = parameter.angle_condition_flag;
 
@@ -132,10 +141,12 @@ int main() {
     // else {
     //   X0 = parameter.X0, Y0 = parameter.Y0, Z0 = parameter.Z0;
     // }
-    double Z0 = V1.col(2).maxCoeff() + (parameter.particle_position * rho);
+    double Z0 = V1.col(2).maxCoeff() + (parameter.particle_position* V2.col(2).maxCoeff());
     Eigen::ArrayXd v2_col = V2.col(2).array();
     v2_col += Z0;
     V2.col(2) = v2_col.matrix();
+    std::string initialparticle="initialparticle.off";
+    igl::writeOFF(initialparticle, V2, F2);   //storing initial particle mesh file
 
 
     std::cout<<"Particle position: "<<X0<<", "<<Y0<<", "<<Z0<<std::endl;
@@ -196,11 +207,10 @@ int main() {
     std::cout<<"Mesh regularization frequency: "<<mesh_reg_frequency<<"\n"<<std::endl;
     logfile<<"Mesh regularization frequency: "<<mesh_reg_frequency<<"\n"<<std::endl;
   }
-  double distance_threshold = 0.20;
+  
   // Calculate the distances between each pair of vertices
   ParticleAdhesion P1;
-  P1.find_pairs(V1, F1, V2, F2, distance_threshold, bonds);
-
+  //P1.find_pairs(V1, F1, V2, F2, distance_threshold, bonds);
   Mesh M1;
   Energy E1;
 
@@ -236,7 +246,12 @@ int main() {
     E1.compute_bendingenergy_force(V1, F1, Kb, Force_Bending, EnergyBending, M1);
     E1.compute_areaenergy_force(V1, F1, Ka, area_target, Force_Area, EnergyArea, M1);
     E1.compute_volumeenergy_force(V1, F1, Kv, volume_target, Force_Volume, EnergyVolume, M1);
-    E1.compute_adhesion_energy_force(V1, F1, V2, F2, rho, U, Force_Adhesion, bonds, EnergyAdhesion, M1);
+    //finding pairs and calculating adhesion force between bonds
+    if (i % bondfrequency == 0){
+      P1.find_pairs(V1, F1, V2, F2, distance_threshold, bonds);
+      std::cout << "bond is updated." << std::endl;
+    }
+    E1.compute_adhesion_energy_force(V1, F1, V2, F2, rho, U,r_equilibrium,epsilon,sigma, Force_Adhesion, bonds, EnergyAdhesion, M1);
     //if (particle_flag) E1.compute_adhesion_energy_force(V1, F1, X0, Y0, Z0, Rp, rho, U, rc, angle_flag, particle_position, Ew_t, Kw, Force_Adhesion, EnergyAdhesion, EnergyBias, M1);
 
     EnergyTotal = EnergyBending + EnergyArea + EnergyVolume + EnergyAdhesion + EnergyBias;
@@ -289,6 +304,18 @@ int main() {
       char dumpfilename[128];
       sprintf(dumpfilename, "dump%08d.off", i);
 	    igl::writeOFF(dumpfilename, V1, F1);
+      char forcefilename[128];
+      sprintf(forcefilename, "adhesion%08d.txt", i);
+      std::ofstream file1(forcefilename);
+  // Check if the file was successfully opened
+      if (file1.is_open()) {
+      file1 << Force_Adhesion << std::endl;
+      file1.close();
+      std::cout << "Adhesion force successfully saved to file." << std::endl;
+      }
+      else {
+      std::cout << "Error: cannot open adhesion force file." <<std::endl;
+       }
 	  }
 
     if (i % resfrequency == 0) igl::writeOFF(parameter.resFile, V1, F1);
@@ -427,6 +454,15 @@ void readParameter()
     runfile >> parameter.potential_range;
     getline(runfile, line);
     getline(runfile, line);
+    runfile >> parameter.r_equilibrium;
+    getline(runfile, line);
+    getline(runfile, line);
+    runfile >> parameter.epsilon;
+    getline(runfile, line);
+    getline(runfile, line);
+    runfile >> parameter.sigma;
+    getline(runfile, line);
+    getline(runfile, line);
     runfile >> parameter.angle_condition_flag;
     getline(runfile, line);
     getline(runfile, line);
@@ -458,6 +494,9 @@ void readParameter()
   getline(runfile, line);
   getline(runfile, line);
   runfile >> parameter.mesh_reg_frequency;
+  getline(runfile, line);
+  getline(runfile, line);
+  runfile >> parameter.bondfrequency;
   getline(runfile, line);
   getline(runfile, line);
   runfile >> parameter.vertex_smoothing_flag;

@@ -51,6 +51,7 @@ class Mesh {
   std::vector<std::vector<double>> VFi;
   Eigen::VectorXd area_voronoi;
 
+
  private:
   double sum;
 
