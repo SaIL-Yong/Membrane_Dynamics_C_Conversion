@@ -72,6 +72,9 @@ while feof(fid3)==0
     ni = sscanf(temp,"%d %*f %*f %*f");
     if ni == frame
         R0 = sscanf(temp,"%*d %f %f %f");
+        % Read the next line
+        nextLine = fgetl(fid3);
+        R1 = sscanf(nextLine, "%f %f %f");
         break;
     end
 end

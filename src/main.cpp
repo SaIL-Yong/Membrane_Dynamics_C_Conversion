@@ -107,9 +107,10 @@ int main() {
   int particle_flag = parameter.particle_flag;
   double gammap = parameter.gammap;
   int particle_position = parameter.particle_position;
-  double Rp, u, U, rho, rc, X0, Y0, Z0, Ew_t, Kw;
+  double Rp, u, U, rho, rc, X0, Y0, Z0, Ew_t, Kw,X1, Y1, Z1;
   int angle_flag;
   Eigen::RowVector3d particle_center, particle_center_mid, particle_force, particle_vel;
+  Eigen::RowVector3d particle_center1, particle_center_mid1, particle_force1, particle_vel1;
   if (particle_flag) {
       // output of particle position
     comfile.open("comfile.txt",std::ios::out);
@@ -141,20 +142,29 @@ int main() {
     
     // position of the particle
     if (!parameter.particle_coord_flag) {
-      X0 = 0.0, Y0 = 0.0, Z0 = V.col(2).maxCoeff() + parameter.particle_position * (Rp + 1.0*rho);
+      X0 = 0.0, Z0 = 0.0, Y0 = V.col(1).maxCoeff() + parameter.particle_position * (Rp + 1.0*rho);
     }
     else {
       X0 = parameter.X0, Y0 = parameter.Y0, Z0 = parameter.Z0;
     }
+    if (!parameter.particle_coord_flag) {
+      X1 = 0.0, Z1 = 0.0, Y1 = -(V.col(1).maxCoeff() + parameter.particle_position * (Rp + 1.0*rho));
+    }
+    else {
+      X1 = parameter.X1, Y1 = parameter.Y1, Z1 = parameter.Z1;
+    }
 
     particle_center<<X0, Y0, Z0;
+    particle_center1<<X1, Y1, Z1;
 
-    std::cout<<"Particle position: "<<X0<<", "<<Y0<<", "<<Z0<<std::endl;
+    std::cout<<"Particle position1: "<<X0<<", "<<Y0<<", "<<Z0<<std::endl;
+    std::cout<<"Particle position2: "<<X1<<", "<<Y1<<", "<<Z1<<std::endl;
     std::cout<<"Particle radius: "<<Rp<<std::endl;
     std::cout<<"Particle adhesion strength: "<<U<<std::endl;
     std::cout<<"Particle adhesion range: "<<rho<<std::endl;   
     std::cout<<"Particle adhesion cutoff: "<<rc<<std::endl;
-    logfile<<"Particle position: "<<X0<<", "<<Y0<<", "<<Z0<<std::endl;
+    logfile<<"Particle position1: "<<X0<<", "<<Y0<<", "<<Z0<<std::endl;
+    logfile<<"Particle position2: "<<X1<<", "<<Y1<<", "<<Z1<<std::endl;
     logfile<<"Particle radius: "<<Rp<<std::endl;
     logfile<<"Particle adhesion strength: "<<U<<std::endl;
     logfile<<"Particle adhesion range: "<<rho<<std::endl;   
@@ -211,9 +221,12 @@ int main() {
   Mesh M1;
   Energy E1;
 
-  Eigen::MatrixXd Force_Area(numV, 3), Force_Volume(numV, 3), Force_Bending(numV, 3), Force_Adhesion(numV, 3), velocity(numV, 3), Force_Total(numV, 3); //force components
+  Eigen::MatrixXd Force_Area(numV, 3), Force_Volume(numV, 3), Force_Bending(numV, 3), Force_Adhesion(numV, 3),Force_Adhesion1
+  (numV, 3), velocity(numV, 3), Force_Total(numV, 3); //force components
+
   velocity.setZero();
-  double EnergyVolume = 0.0, EnergyArea = 0.0, EnergyBending = 0.0, EnergyAdhesion = 0.0,  EnergyBias = 0.0,
+
+  double EnergyVolume = 0.0, EnergyArea = 0.0, EnergyBending = 0.0, EnergyAdhesion = 0.0,EnergyAdhesion1=0.0,  EnergyBias = 0.0,
          EnergyTotal = 0.0, EnergyTotalold_log = 0.0, EnergyChangeRate_log = 0.0, EnergyChangeRate_avg = 0.0;  //energy components
   Eigen::MatrixXd l;
   std::cout<<"Simulation Start:\n"<<std::endl;
@@ -223,15 +236,15 @@ int main() {
   // initiate logfile output
   if (particle_flag) {
     if (parameter.forced_wrapping_flag)
-      logfile<<"Iteration  Time  Area  Volume  ReducedVolume  BendingEnergy  AreaEnergy  VolumeEnergy  AdhesionEnergy  BiasedWrappingEnergy  TotalEnergy  EnergyChangeRate  ForceResidual"<<std::endl;
+      logfile<<"Iteration  Time  Area  Volume  ReducedVolume  BendingEnergy  AreaEnergy  VolumeEnergy  AdhesionEnergy1 AdhesionEnergy2  BiasedWrappingEnergy  TotalEnergy  EnergyChangeRate  ForceResidual"<<std::endl;
     else
-      logfile<<"Iteration  Time  Area  Volume  ReducedVolume  BendingEnergy  AreaEnergy  VolumeEnergy  AdhesionEnergy  TotalEnergy  EnergyChangeRate  ForceResidual"<<std::endl;
+      logfile<<"Iteration  Time  Area  Volume  ReducedVolume  BendingEnergy  AreaEnergy  VolumeEnergy  AdhesionEnergy1 AdhesionEnergy2  TotalEnergy  EnergyChangeRate  ForceResidual"<<std::endl;
   } else {
     logfile<<"Iteration  Time  Area  Volume  ReducedVolume  BendingEnergy  AreaEnergy  VolumeEnergy  TotalEnergy  EnergyChangeRate  ForceResidual"<<std::endl;
   }
 
   // initiate screen output
-  if (particle_flag) std::cout<<"Iteration  ReducedVolume  BendingEnergy  AdhesionEnergy  TotalEnergy  EnergyChangeRate  ForceResidual"<<std::endl;
+  if (particle_flag) std::cout<<"Iteration  ReducedVolume  BendingEnergy  AdhesionEnergy1 AdhesionEnergy2  TotalEnergy  EnergyChangeRate  ForceResidual"<<std::endl;
   else std::cout<<"Iteration  ReducedVolume  BendingEnergy  TotalEnergy  EnergyChangeRate  ForceResidual"<<std::endl;
 
   // main loop
@@ -243,10 +256,12 @@ int main() {
     E1.compute_bendingenergy_force(V, F, Kb, C0, Force_Bending, EnergyBending, M1);
     E1.compute_areaenergy_force(V, F, Ka, area_target, Force_Area, EnergyArea, M1);
     E1.compute_volumeenergy_force(V, F, Kv, volume_target, Force_Volume, EnergyVolume, M1);
-    if (particle_flag) E1.compute_adhesion_energy_force(V, F, particle_center, Rp, rho, U, rc, angle_flag, particle_position, Ew_t, Kw, Force_Adhesion, EnergyAdhesion, EnergyBias, particle_force, M1);
-
-    EnergyTotal = EnergyBending + EnergyArea + EnergyVolume + EnergyAdhesion + EnergyBias;
-    Force_Total = Force_Bending + Force_Area + Force_Volume + Force_Adhesion;
+    if (particle_flag) {
+      E1.compute_adhesion_energy_force(V, F, particle_center, Rp, rho, U, rc, angle_flag, particle_position, Ew_t, Kw, Force_Adhesion, EnergyAdhesion, EnergyBias, particle_force, M1);
+      E1.compute_adhesion_energy_force(V, F, particle_center1, Rp, rho, U, rc, angle_flag, particle_position, Ew_t, Kw, Force_Adhesion1, EnergyAdhesion1, EnergyBias, particle_force1, M1);
+    }
+    EnergyTotal = EnergyBending + EnergyArea + EnergyVolume + EnergyAdhesion+EnergyAdhesion1 + EnergyBias;
+    Force_Total = Force_Bending + Force_Area + Force_Volume + Force_Adhesion+Force_Adhesion1;
     force_residual = Force_Total.norm();
 
     rVol = 6 * sqrt(PI) * M1.volume_total * pow(M1.area_total, -1.5);
@@ -258,7 +273,7 @@ int main() {
 
       // screen output
       if (particle_flag)
-        std::cout<<i<<"  "<<rVol<<"  "<<EnergyBending<<"  "<<EnergyAdhesion<<"  "<<EnergyTotal<<"  "<<EnergyChangeRate_log<<"  "<<force_residual<<"  "<<std::endl;
+        std::cout<<i<<"  "<<rVol<<"  "<<EnergyBending<<"  "<<EnergyAdhesion<<"  "<<EnergyAdhesion1<<" "<<EnergyTotal<<"  "<<EnergyChangeRate_log<<"  "<<force_residual<<"  "<<std::endl;
       else
         std::cout<<i<<"  "<<rVol<<"  "<<EnergyBending<<"  "<<EnergyTotal<<"  "<<EnergyChangeRate_log<<"  "<<force_residual<<"  "<<std::endl;
       // logfile output
@@ -272,6 +287,7 @@ int main() {
       logfile<<EnergyVolume<<"  ";
       if (particle_flag) {
         logfile<<EnergyAdhesion<<"  "; 
+        logfile<<EnergyAdhesion1<<"  "; 
         if (parameter.forced_wrapping_flag) logfile<<EnergyBias<<"  ";
       }
       logfile<<EnergyTotal<<"  ";
@@ -296,15 +312,21 @@ int main() {
       if (particle_flag) {
         comfile<<i<<"  ";
         comfile<<particle_center(0)<<"  "<<particle_center(1)<<"  "<<particle_center(2)<<std::endl;
+        comfile<<particle_center1(0)<<"  "<<particle_center1(1)<<"  "<<particle_center1(2)<<std::endl;
       }
     }
 
     if (i % resfrequency == 0) igl::writeOFF(parameter.resFile, V, F);
 
     velocity = Force_Total / gamma;
-    particle_vel = particle_force / gammap;
     V += velocity * dt;
+    
+    particle_vel = particle_force / gammap;
     particle_center += particle_vel * dt;
+    particle_vel1 = particle_force1 / gammap;
+    particle_center1 += particle_vel1 * dt;
+
+
 
     if (v_smooth_flag || delaunay_tri_flag) {
       if ((i+1) % mesh_reg_frequency == 0) {
@@ -337,6 +359,7 @@ int main() {
   logfile<<EnergyVolume<<"  ";
   if (particle_flag) {
     logfile<<EnergyAdhesion<<"  ";
+    logfile<<EnergyAdhesion1<<"  "; 
     if (parameter.forced_wrapping_flag) logfile<<EnergyBias<<"  ";
   }
   logfile<<EnergyTotal<<"  ";
@@ -375,6 +398,27 @@ int main() {
   else {
     std::cout << "Error: cannot open area force file." << std::endl;
   }
+
+  std::ofstream file4("Volume_Force.txt");
+  if (file4.is_open()) {
+    file4<<Force_Volume<< std::endl;
+    file4.close();
+    std::cout << "Volume force successfully saved to file." << std::endl;
+  }
+  else {
+    std::cout << "Error: cannot open area force file." << std::endl;
+  }
+
+  std::ofstream file5("Adhesion_Force1.txt");
+  if (file5.is_open()) {
+    file5<< Force_Area << std::endl;
+    file5.close();
+    std::cout << "Adhesion force for particle 2successfully saved to file." << std::endl;
+  }
+  else {
+    std::cout << "Error: cannot open area force file." << std::endl;
+  }
+  
 }
 
 void readParameter()
