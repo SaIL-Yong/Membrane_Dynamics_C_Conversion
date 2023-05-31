@@ -471,8 +471,11 @@ void readParameter()
     runfile >> parameter.particle_position;
     getline(runfile, line);
     getline(runfile, line);
-    if (line.compare("particle_coordinate") == 0) {
+    if (line.compare("particle_coordinate1") == 0) {
       runfile >> parameter.X0 >> parameter.Y0 >> parameter.Z0;
+      getline(runfile, line);
+      getline(runfile, line);
+      runfile >> parameter.X1 >> parameter.Y1 >> parameter.Z1;
       parameter.particle_coord_flag = 1;
       getline(runfile, line);
       getline(runfile, line);

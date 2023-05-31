@@ -10,19 +10,25 @@ Kv
 0.0
 reduced_volume
 1.0
+C_0
+0.0
 tolerance
-1.0e-8
+1.0e-7
 tolerance_flag // 1 ON 0 OFF
 1
 tol_frequency
-500
+100
 gamma
 1.0
 particle_flag
 1
+gammap
+1000.0
 particle_position // -1 inside 1 outside
 1
-particle_coordinate
+particle_coordinate1
+0 0 1.30853
+particle_coordinate2
 0 0 1.30853
 particle_radius
 0.3
