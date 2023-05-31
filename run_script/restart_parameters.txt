@@ -35,7 +35,7 @@ particle_radius
 adhesion_strength
 2.0
 potential_range
-0.1
+0.01
 angle_condition_flag
 1
 forced_wrapping // 1 ON 0 OFF
