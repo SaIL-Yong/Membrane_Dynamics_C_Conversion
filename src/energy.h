@@ -25,7 +25,7 @@ class Energy {
   // float rho=(parameter.potential_range)*rp;
   // float U=(bending_modulus*u)/(pow(rp,2)) ;
       //float X,Y,Z,rp,u,rho,U;
-   void compute_bendingenergy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, double Kb,double C_0, Eigen::MatrixXd& Force_Bending, double& bending_energy, Mesh m);
+  void compute_bendingenergy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, double Kb,double C_0, Eigen::MatrixXd& Force_Bending, double& bending_energy, Mesh m);
   void compute_areaenergy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, double Ka, double area_target, Eigen::MatrixXd& Force_Area, double& area_energy, Mesh m);
   void compute_volumeenergy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, double Kv, double volume_target, Eigen::MatrixXd& Force_Volume, double& volume_energy, Mesh m);
   //Eigen::VectorXd area_voronoi;
@@ -34,7 +34,7 @@ class Energy {
   void compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, Eigen::RowVector3d COM,
                                      double rp, double rho, double U, double rc, int angle_flag, int particle_position, double Ew_t, double Kw,
                                      Eigen::MatrixXd& Force_Adhesion, double& EnergyAdhesion, double& E_bias, Eigen::RowVector3d& PF, Mesh m);
-
+  void compute_repulsive_force(Eigen::RowVector3d particle_center1,Eigen::RowVector3d particle_center2,double overlap,Eigen::RowVector3d& Force_Repulsive) ;
  private:
   // variables for bending energy force calculation
   Eigen::VectorXd Lap_H, force_density;

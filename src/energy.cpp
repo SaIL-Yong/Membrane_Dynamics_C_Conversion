@@ -122,3 +122,24 @@ void Energy::compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F,
     PF = -Second_Term.colwise().sum();
   }
 }
+void Energy::compute_repulsive_force(Eigen::RowVector3d particle_center1,Eigen::RowVector3d particle_center2,double overlap,Eigen::RowVector3d& Force_Repulsive){
+    Force_Repulsive.setZero();
+    // double combinedRadius = Rp+Rp;
+    // double overlap = (particle_center1 - particle_center2).norm() - combinedRadius;
+    // if (overlap <= 0.0) {
+    //     // No overlap, no repulsive force
+    //     return;
+    // }
+    // Calculate the repulsive force vector based on Hooke's Law
+    double k = 10.0; // Spring constant, adjust as needed
+
+    // Calculate the direction vector from sphere1 to sphere2
+    Eigen::RowVector3d directionVector = (particle_center1 - particle_center2).normalized();
+
+    // Calculate the force magnitude
+    double forceMagnitude = k * overlap;
+
+    // Calculate the force vector components
+    Force_Repulsive = forceMagnitude * directionVector;
+
+}

@@ -109,7 +109,7 @@ int main() {
   int particle_position = parameter.particle_position;
   double Rp, u, U, rho, rc, X0, Y0, Z0, Ew_t, Kw,X1, Y1, Z1;
   int angle_flag;
-  Eigen::RowVector3d particle_center, particle_center_mid, particle_force, particle_vel;
+  Eigen::RowVector3d particle_center, particle_center_mid, particle_force, particle_vel,Force_Repulsive;
   Eigen::RowVector3d particle_center1, particle_center_mid1, particle_force1, particle_vel1;
   if (particle_flag) {
       // output of particle position
@@ -320,11 +320,22 @@ int main() {
 
     velocity = Force_Total / gamma;
     V += velocity * dt;
-    
-    particle_vel = particle_force / gammap;
+
+    double combinedRadius = Rp+Rp;
+    double overlap = (particle_center - particle_center).norm() - combinedRadius;
+    if (overlap <= 0.0) {
+          particle_vel = (particle_force) / gammap;
+          particle_center += particle_vel * dt;
+          particle_vel1 = (particle_force1) / gammap;
+          particle_center1 += particle_vel1 * dt;
+
+    } else{
+    E1.compute_repulsive_force(particle_center, particle_center1, overlap, Force_Repulsive);
+    particle_vel = (particle_force+Force_Repulsive) / gammap;
     particle_center += particle_vel * dt;
-    particle_vel1 = particle_force1 / gammap;
+    particle_vel1 = (particle_force1+(-Force_Repulsive) ) / gammap;
     particle_center1 += particle_vel1 * dt;
+  }
 
 
 
