@@ -131,7 +131,7 @@ void Energy::compute_repulsive_force(Eigen::RowVector3d particle_center1,Eigen::
     //     return;
     // }
     // Calculate the repulsive force vector based on Hooke's Law
-    double k = 10.0; // Spring constant, adjust as needed
+    double k = 1.0; // Spring constant, adjust as needed
 
     // Calculate the direction vector from sphere1 to sphere2
     Eigen::RowVector3d directionVector = (particle_center1 - particle_center2).normalized();

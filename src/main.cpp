@@ -322,7 +322,7 @@ int main() {
     V += velocity * dt;
 
     double combinedRadius = Rp+Rp;
-    double overlap = (particle_center - particle_center).norm() - combinedRadius;
+    double overlap = (particle_center - particle_center1).norm() - combinedRadius;
     if (overlap <= 0.0) {
           particle_vel = (particle_force) / gammap;
           particle_center += particle_vel * dt;
@@ -354,7 +354,12 @@ int main() {
   }
 
   if ((i+1) == iterations) std::cout<<"Simulation reaches max iterations."<<std::endl;
-  if (particle_flag) comfile.close();
+  if (particle_flag) {
+        comfile<<i<<"  ";
+        comfile<<particle_center(0)<<"  "<<particle_center(1)<<"  "<<particle_center(2)<<std::endl;
+        comfile<<particle_center1(0)<<"  "<<particle_center1(1)<<"  "<<particle_center1(2)<<std::endl;
+        comfile.close();
+  }
 
   auto end = system_clock::now();
   auto duration = duration_cast<minutes>(end - start);
