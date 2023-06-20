@@ -323,7 +323,7 @@ int main() {
 
     double combinedRadius = Rp+Rp;
     double overlap = (particle_center - particle_center1).norm() - combinedRadius;
-    if (overlap <= 0.0) {
+    if (overlap >= 0.0) {
           particle_vel = (particle_force) / gammap;
           particle_center += particle_vel * dt;
           particle_vel1 = (particle_force1) / gammap;
