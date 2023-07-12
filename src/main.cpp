@@ -331,9 +331,9 @@ int main() {
 
     } else{
     E1.compute_repulsive_force(particle_center, particle_center1, overlap, Force_Repulsive);
-    particle_vel = (particle_force+Force_Repulsive) / gammap;
+    particle_vel = (particle_force+(-Force_Repulsive)) / gammap;
     particle_center += particle_vel * dt;
-    particle_vel1 = (particle_force1+(-Force_Repulsive) ) / gammap;
+    particle_vel1 = (particle_force1+(Force_Repulsive) ) / gammap;
     particle_center1 += particle_vel1 * dt;
   }
 
