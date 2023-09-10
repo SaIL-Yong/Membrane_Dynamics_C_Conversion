@@ -4,7 +4,7 @@
 
 void ParticleAdhesion::find_pairs(Eigen::MatrixXd V, Eigen::MatrixXi F, Eigen::MatrixXd V_particle, Eigen::MatrixXi F_particle,double distance_threshold, std::vector<std::pair<int, int>> &bonds)
 {
-Mesh M1;
+//Mesh M1;
  //const double distance_threshold = 0.20;
 nearest.resize(V.rows());
 nearest.setConstant(-1); // initialize to -1 to mark vertices that don't have a nearest neighbor
@@ -40,6 +40,31 @@ for (int i = 0; i < V.rows(); i++) {
 //     std::cout << bond.first << " " << bond.second << std::endl;
 // }   
 //return bonds;
+}
+
+
+void ParticleAdhesion::remove_long_bonds(std::vector<std::pair<int, int>>& bonds, Eigen::MatrixXd& V, Eigen::MatrixXd& V_particle, double max_bond_length)
+{
+    // Create a new vector to store the updated bonds
+    std::vector<std::pair<int, int>> updated_bonds;
+
+    for (const auto& bond : bonds) {
+        int vertex1_idx = bond.first;
+        int vertex2_idx = bond.second;
+
+        // Calculate the bond length between the two vertices
+        double bond_length = (V.row(vertex1_idx) - V_particle.row(vertex2_idx)).norm();
+
+        // Check if the bond length is less than or equal to the maximum allowed length
+        if (bond_length <= max_bond_length) {
+            // If the bond length is within the threshold, keep this bond
+            updated_bonds.push_back(bond);
+        }
+        // If the bond length is greater than the threshold, skip this bond (delete it).
+    }
+
+    // Replace the original bonds vector with the updated one
+    bonds = updated_bonds;
 }
 
 /*

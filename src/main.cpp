@@ -25,7 +25,7 @@ int main() {
 
   Eigen::VectorXi nearest;              // Nearest neighbor of each vertex in V1 in V2
   std::vector<std::pair<int, int>> bonds;
-  double distance_threshold = 0.20;
+  double distance_threshold = 0.1;
 
   // screen and log output of simulation settings
   std::fstream logfile;
@@ -154,11 +154,13 @@ int main() {
     std::cout<<"Particle adhesion strength: "<<U<<std::endl;
     std::cout<<"Particle adhesion range: "<<rho<<std::endl;   
     std::cout<<"Particle adhesion cutoff: "<<rc<<std::endl;
+    std::cout<<"distance threshold: "<<distance_threshold<<std::endl;
     logfile<<"Particle position: "<<X0<<", "<<Y0<<", "<<Z0<<std::endl;
     logfile<<"Particle radius: "<<Rp<<std::endl;
     logfile<<"Particle adhesion strength: "<<U<<std::endl;
     logfile<<"Particle adhesion range: "<<rho<<std::endl;   
     logfile<<"Particle adhesion cutoff: "<<rc<<std::endl;
+    logfile<<"distance threshold: "<<distance_threshold<<std::endl;
     if (angle_flag) {
       std::cout<<"Angle criterion: ON\n"<<std::endl;
       logfile<<"Angle criterion: ON\n"<<std::endl;
@@ -236,7 +238,8 @@ int main() {
   // initiate screen output
   if (particle_flag) std::cout<<"Iteration  ReducedVolume  BendingEnergy  AdhesionEnergy  TotalEnergy  EnergyChangeRate  ForceResidual"<<std::endl;
   else std::cout<<"Iteration  ReducedVolume  BendingEnergy  TotalEnergy  EnergyChangeRate  ForceResidual"<<std::endl;
-
+  P1.find_pairs(V1, F1, V2, F2, distance_threshold, bonds);
+  std::cout << "bond is updated." << std::endl;
   // main loop
   int i;
   int toln = 0;
@@ -247,10 +250,11 @@ int main() {
     E1.compute_areaenergy_force(V1, F1, Ka, area_target, Force_Area, EnergyArea, M1);
     E1.compute_volumeenergy_force(V1, F1, Kv, volume_target, Force_Volume, EnergyVolume, M1);
     //finding pairs and calculating adhesion force between bonds
-    if (i % bondfrequency == 0){
-      P1.find_pairs(V1, F1, V2, F2, distance_threshold, bonds);
-      std::cout << "bond is updated." << std::endl;
-    }
+    // if (i % bondfrequency == 0){
+    //   P1.find_pairs(V1, F1, V2, F2, distance_threshold, bonds);
+    //   std::cout << "bond is updated." << std::endl;
+    // }
+    P1.remove_long_bonds(bonds, V1, V2,distance_threshold);
     E1.compute_adhesion_energy_force(V1, F1, V2, F2, rho, U,r_equilibrium,epsilon,sigma, Force_Adhesion, bonds, EnergyAdhesion, M1);
     //if (particle_flag) E1.compute_adhesion_energy_force(V1, F1, X0, Y0, Z0, Rp, rho, U, rc, angle_flag, particle_position, Ew_t, Kw, Force_Adhesion, EnergyAdhesion, EnergyBias, M1);
 
@@ -304,18 +308,18 @@ int main() {
       char dumpfilename[128];
       sprintf(dumpfilename, "dump%08d.off", i);
 	    igl::writeOFF(dumpfilename, V1, F1);
-      char forcefilename[128];
-      sprintf(forcefilename, "adhesion%08d.txt", i);
-      std::ofstream file1(forcefilename);
-  // Check if the file was successfully opened
-      if (file1.is_open()) {
-      file1 << Force_Adhesion << std::endl;
-      file1.close();
-      std::cout << "Adhesion force successfully saved to file." << std::endl;
-      }
-      else {
-      std::cout << "Error: cannot open adhesion force file." <<std::endl;
-       }
+  //     char forcefilename[128];
+  //     sprintf(forcefilename, "adhesion%08d.txt", i);
+  //     std::ofstream file1(forcefilename);
+  // // Check if the file was successfully opened
+  //     if (file1.is_open()) {
+  //     file1 << Force_Adhesion << std::endl;
+  //     file1.close();
+  //     std::cout << "Adhesion force successfully saved to file." << std::endl;
+  //     }
+  //     else {
+  //     std::cout << "Error: cannot open adhesion force file." <<std::endl;
+  //      }
 	  }
 
     if (i % resfrequency == 0) igl::writeOFF(parameter.resFile, V1, F1);
