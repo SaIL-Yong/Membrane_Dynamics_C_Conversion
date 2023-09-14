@@ -55,15 +55,25 @@ void ParticleAdhesion::find_pairs(Eigen::MatrixXd V, Eigen::MatrixXd V_particle,
     // Make the current bonds list permanent for the next iteration
     permanent_bonds = bonds;
 
-  std::ofstream file("Bond_List.txt");
-  if (file.is_open()) {
-  file<<"Bond: " << bonds.first << ", " << bonds.first << ")<< std::endl;
-  file.close();
-  std::cout << "Force Density successfully saved to file." << std::endl;
-  }
-  else {
-   std::cout << "Error: cannot open bending force file." << std::endl;
-  }
+std::ofstream outputFile("bonds.txt");
+
+    if (!outputFile.is_open()) {
+        std::cerr << "Error: Unable to open the file for writing." << std::endl;
+        return;
+    }
+
+    for (const auto& bond : bonds) {
+        int vertex1_idx = bond.first;
+        int vertex2_idx = bond.second;
+
+        // Calculate the bond length between the two vertices
+        double distance = (V.row(vertex1_idx) - V_particle.row(vertex2_idx)).norm();
+
+        // Write the bond information to the file
+        outputFile << "Bond: (" << vertex1_idx << ", " << vertex2_idx << "), Distance: " << distance << std::endl;
+    }
+
+    outputFile.close();
 }
 
 
