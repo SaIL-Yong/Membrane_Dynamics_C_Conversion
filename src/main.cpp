@@ -25,7 +25,7 @@ int main() {
 
   Eigen::VectorXi nearest;              // Nearest neighbor of each vertex in V1 in V2
   std::vector<std::pair<int, int>> bonds;
-  std::vector<std::pair<int, int>> permanent_bonds;
+
   double distance_threshold = 0.1;
 
   // screen and log output of simulation settings
@@ -256,7 +256,7 @@ int main() {
     //   std::cout << "bond is updated." << std::endl;
     // }
     // P1.remove_long_bonds(bonds, V1, V2,distance_threshold);
-    E1.compute_adhesion_energy_force(V1, F1, V2, F2, rho, U,r_equilibrium,epsilon,sigma, Force_Adhesion, permanent_bonds, EnergyAdhesion, M1);
+    E1.compute_adhesion_energy_force(V1, F1, V2, F2, rho, U,r_equilibrium,epsilon,sigma, Force_Adhesion,bonds, EnergyAdhesion, M1);
     //if (particle_flag) E1.compute_adhesion_energy_force(V1, F1, X0, Y0, Z0, Rp, rho, U, rc, angle_flag, particle_position, Ew_t, Kw, Force_Adhesion, EnergyAdhesion, EnergyBias, M1);
 
     EnergyTotal = EnergyBending + EnergyArea + EnergyVolume + EnergyAdhesion + EnergyBias;
@@ -327,7 +327,7 @@ int main() {
 
     //finding pairs and calculating adhesion force between bonds
     if (i % bondfrequency == 0){
-      P1.find_pairs(V1, V2,distance_threshold, bonds,permanent_bonds);
+      P1.find_pairs(V1, V2,distance_threshold, bonds);
       std::cout << "bond is updated." << std::endl;
     }
     //P1.remove_long_bonds(permanent_bonds, V1, V2,distance_threshold);

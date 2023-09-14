@@ -3,13 +3,13 @@
 #include "energy.h"
 
 
-void ParticleAdhesion::find_pairs(Eigen::MatrixXd V, Eigen::MatrixXd V_particle, double distance_threshold, std::vector<std::pair<int, int>>& bonds, std::vector<std::pair<int, int>>& permanent_bonds)
+void ParticleAdhesion::find_pairs(Eigen::MatrixXd V, Eigen::MatrixXd V_particle, double distance_threshold, std::vector<std::pair<int, int>>& bonds)
 {
     nearest.resize(V.rows());
     nearest.setConstant(-1);
 
-    // Copy the existing permanent bonds to the new bonds list
-    bonds = permanent_bonds;
+    // Create a new vector to store the updated bonds
+    std::vector<std::pair<int, int>> updated_bonds = bonds;
 
     for (int i = 0; i < V.rows(); i++) {
         double min_distance = std::numeric_limits<double>::max();
@@ -25,11 +25,11 @@ void ParticleAdhesion::find_pairs(Eigen::MatrixXd V, Eigen::MatrixXd V_particle,
                 nearest_index = j;
             }
         }
-      
+
         if (nearest_index != -1 && min_distance < distance_threshold) {
-            // Check if the bond (i, nearest_index) already exists in bonds or permanent_bonds
+            // Check if the bond (i, nearest_index) already exists in updated_bonds or permanent_bonds
             bool bond_exists = false;
-            for (const auto& bond : bonds) {
+            for (const auto& bond : updated_bonds) {
                 if ((bond.first == i && bond.second == nearest_index) ||
                     (bond.first == nearest_index && bond.second == i)) {
                     bond_exists = true;
@@ -37,25 +37,19 @@ void ParticleAdhesion::find_pairs(Eigen::MatrixXd V, Eigen::MatrixXd V_particle,
                 }
             }
 
-            for (const auto& bond : permanent_bonds) {
-                if ((bond.first == i && bond.second == nearest_index) ||
-                    (bond.first == nearest_index && bond.second == i)) {
-                    bond_exists = true;
-                    break;
-                }
-            }
 
             if (!bond_exists) {
-                // If the bond doesn't exist in either list, add it to the bonds vector
-                bonds.emplace_back(i, nearest_index);
+                // If the bond doesn't exist in either list, add it to updated_bonds
+                updated_bonds.emplace_back(i, nearest_index);
             }
         }
     }
 
-    // Make the current bonds list permanent for the next iteration
-    permanent_bonds = bonds;
+    // Update the bonds vector with the updated_bonds
+    bonds = updated_bonds;
 
-std::ofstream outputFile("bonds.txt");
+
+    std::ofstream outputFile("bonds.txt");
 
     if (!outputFile.is_open()) {
         std::cerr << "Error: Unable to open the file for writing." << std::endl;
