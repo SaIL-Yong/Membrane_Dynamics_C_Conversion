@@ -2,37 +2,102 @@
 #include "meshops.h"
 #include "energy.h"
 
-void ParticleAdhesion::find_pairs(Eigen::MatrixXd V, Eigen::MatrixXi F, Eigen::MatrixXd V_particle, Eigen::MatrixXi F_particle,double distance_threshold, std::vector<std::pair<int, int>> &bonds)
+
+void ParticleAdhesion::find_pairs(Eigen::MatrixXd V, Eigen::MatrixXd V_particle, double distance_threshold, std::vector<std::pair<int, int>>& bonds, std::vector<std::pair<int, int>>& permanent_bonds)
 {
-//Mesh M1;
- //const double distance_threshold = 0.20;
-nearest.resize(V.rows());
-nearest.setConstant(-1); // initialize to -1 to mark vertices that don't have a nearest neighbor
-for (int i = 0; i < V.rows(); i++) {
-    double min_distance = std::numeric_limits<double>::max();
-    int nearest_index = -1;
-    for (int j = 0; j < V_particle.rows(); j++) {
-        double distance = sqrt(pow(V(i,0)-V_particle(j,0), 2)
-                             +pow(V(i,1)-V_particle(j,1), 2)
-                             +pow(V(i,2)-V_particle(j,2), 2));
-        if (distance < min_distance) {
-            min_distance = distance;
-            nearest_index = j;
+    nearest.resize(V.rows());
+    nearest.setConstant(-1);
+
+    // Copy the existing permanent bonds to the new bonds list
+    bonds = permanent_bonds;
+
+    for (int i = 0; i < V.rows(); i++) {
+        double min_distance = std::numeric_limits<double>::max();
+        int nearest_index = -1;
+
+        for (int j = 0; j < V_particle.rows(); j++) {
+            double distance = sqrt(pow(V(i, 0) - V_particle(j, 0), 2)
+                + pow(V(i, 1) - V_particle(j, 1), 2)
+                + pow(V(i, 2) - V_particle(j, 2), 2));
+
+            if (distance < min_distance) {
+                min_distance = distance;
+                nearest_index = j;
+            }
+        }
+      
+        if (nearest_index != -1 && min_distance < distance_threshold) {
+            // Check if the bond (i, nearest_index) already exists in bonds or permanent_bonds
+            bool bond_exists = false;
+            for (const auto& bond : bonds) {
+                if ((bond.first == i && bond.second == nearest_index) ||
+                    (bond.first == nearest_index && bond.second == i)) {
+                    bond_exists = true;
+                    break;
+                }
+            }
+
+            for (const auto& bond : permanent_bonds) {
+                if ((bond.first == i && bond.second == nearest_index) ||
+                    (bond.first == nearest_index && bond.second == i)) {
+                    bond_exists = true;
+                    break;
+                }
+            }
+
+            if (!bond_exists) {
+                // If the bond doesn't exist in either list, add it to the bonds vector
+                bonds.emplace_back(i, nearest_index);
+            }
         }
     }
-    if (nearest_index != -1 && min_distance < distance_threshold) {
-        nearest(i) = nearest_index;
-    }
+
+    // Make the current bonds list permanent for the next iteration
+    permanent_bonds = bonds;
+
+  std::ofstream file("Bond_List.txt");
+  if (file.is_open()) {
+  file<<"Bond: " << bonds.first << ", " << bonds.first << ")<< std::endl;
+  file.close();
+  std::cout << "Force Density successfully saved to file." << std::endl;
+  }
+  else {
+   std::cout << "Error: cannot open bending force file." << std::endl;
+  }
 }
-//std::cout << nearest<< std::endl;
-// Create bond connections based on nearest neighbors
-//std::vector<std::pair<int, int>> bonds;
-for (int i = 0; i < V.rows(); i++) {
-    int j = nearest(i);
-    if (j != -1) {
-        bonds.emplace_back(i, j);
-    }
-}
+
+
+// void ParticleAdhesion::find_pairs(Eigen::MatrixXd V, Eigen::MatrixXi F, Eigen::MatrixXd V_particle, Eigen::MatrixXi F_particle,double distance_threshold, std::vector<std::pair<int, int>> &bonds)
+// {
+// //Mesh M1;
+//  //const double distance_threshold = 0.20;
+// nearest.resize(V.rows());
+// nearest.setConstant(-1); // initialize to -1 to mark vertices that don't have a nearest neighbor
+// for (int i = 0; i < V.rows(); i++) {
+//     double min_distance = std::numeric_limits<double>::max();
+//     int nearest_index = -1;
+//     for (int j = 0; j < V_particle.rows(); j++) {
+//         double distance = sqrt(pow(V(i,0)-V_particle(j,0), 2)
+//                              +pow(V(i,1)-V_particle(j,1), 2)
+//                              +pow(V(i,2)-V_particle(j,2), 2));
+//         if (distance < min_distance) {
+//             min_distance = distance;
+//             nearest_index = j;
+//         }
+//     }
+//     if (nearest_index != -1 && min_distance < distance_threshold) {
+//         nearest(i) = nearest_index;
+//     }
+// }
+// //std::cout << nearest<< std::endl;
+// // Create bond connections based on nearest neighbors
+// //std::vector<std::pair<int, int>> bonds;
+// for (int i = 0; i < V.rows(); i++) {
+//     int j = nearest(i);
+//     if (j != -1) {
+//         bonds.emplace_back(i, j);
+//     }
+// }
 
 // Output the number of bonds and the list of bonds
 // std::cout << "Number of bonds: " << bonds.size() << std::endl;
@@ -40,7 +105,7 @@ for (int i = 0; i < V.rows(); i++) {
 //     std::cout << bond.first << " " << bond.second << std::endl;
 // }   
 //return bonds;
-}
+//}
 
 
 void ParticleAdhesion::remove_long_bonds(std::vector<std::pair<int, int>>& bonds, Eigen::MatrixXd& V, Eigen::MatrixXd& V_particle, double max_bond_length)

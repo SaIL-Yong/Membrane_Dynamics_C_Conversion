@@ -2,7 +2,7 @@
 #include "meshops.h"
 #include "parameters.h"
 
-void Mesh::mesh_cal(Eigen::MatrixXd V, Eigen::MatrixXi F,double C0)
+void Mesh::mesh_cal(Eigen::MatrixXd V, Eigen::MatrixXi F)
 {
   numV = V.rows();
   numF = F.rows();
@@ -14,6 +14,7 @@ void Mesh::mesh_cal(Eigen::MatrixXd V, Eigen::MatrixXi F,double C0)
   igl::massmatrix(V, F, igl::MASSMATRIX_TYPE_VORONOI, M);
   igl::invert_diag(M, Minv);
   igl::gaussian_curvature(V, F, K);
+  
 
   K = (Minv * K).eval();
   HN = -Minv * (L * V) / 2.0;
@@ -23,10 +24,7 @@ void Mesh::mesh_cal(Eigen::MatrixXd V, Eigen::MatrixXi F,double C0)
   abc = H_X_N.rowwise().sum();
   sign_of_H = abc.array().sign();
   H_signed = H.array() * sign_of_H.array();
-  H_signed = H_signed.array();
   H_squared = H.array().square();
-  H_C0 = H_signed.array() - 0.5*C0;
-  H_C0_squared = H_C0.array().square();
   area_voronoi = M.diagonal();
 
   volume_total = cal_volume2(V, F);
@@ -102,7 +100,7 @@ Eigen::MatrixXd Mesh::volume_grad(Eigen::MatrixXd V, Eigen::MatrixXi F)
     VG.row(i) = vol_ij;
   }
 
-  std::cout<<"vol_grad \n"<<VG<<std::endl;
+  //std::cout<<"vol_grad \n"<<vol_grad<<std::endl;
   return VG;
 }
 
