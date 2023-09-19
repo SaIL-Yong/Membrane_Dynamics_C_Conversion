@@ -12,10 +12,28 @@ void ParticleAdhesion::find_pairs(Eigen::MatrixXd V, Eigen::MatrixXd V_particle,
     std::vector<std::pair<int, int>> updated_bonds = bonds;
 
     for (int i = 0; i < V.rows(); i++) {
+        bool membv_occupied = false;
+        for (const auto& bond : updated_bonds) {
+            if (bond.first == i) {
+                membv_occupied = true;
+                break;
+            }
+        }
+        if (membv_occupied) continue;
+
         double min_distance = std::numeric_limits<double>::max();
         int nearest_index = -1;
 
         for (int j = 0; j < V_particle.rows(); j++) {
+            bool particlev_occupied = false;
+            for (const auto& bond : updated_bonds) {
+                if (bond.second == j) {
+                particlev_occupied = true;
+                break;
+                }
+            }
+            if (particlev_occupied) continue;
+            
             double distance = sqrt(pow(V(i, 0) - V_particle(j, 0), 2)
                 + pow(V(i, 1) - V_particle(j, 1), 2)
                 + pow(V(i, 2) - V_particle(j, 2), 2));
@@ -26,23 +44,8 @@ void ParticleAdhesion::find_pairs(Eigen::MatrixXd V, Eigen::MatrixXd V_particle,
             }
         }
 
-        if (nearest_index != -1 && min_distance < distance_threshold) {
-            // Check if the bond (i, nearest_index) already exists in updated_bonds or permanent_bonds
-            bool bond_exists = false;
-            for (const auto& bond : updated_bonds) {
-                if ((bond.first == i && bond.second == nearest_index) ||
-                    (bond.first == nearest_index && bond.second == i)) {
-                    bond_exists = true;
-                    break;
-                }
-            }
+        if (nearest_index != -1 && min_distance < distance_threshold) updated_bonds.emplace_back(i, nearest_index);
 
-
-            if (!bond_exists) {
-                // If the bond doesn't exist in either list, add it to updated_bonds
-                updated_bonds.emplace_back(i, nearest_index);
-            }
-        }
     }
 
     // Update the bonds vector with the updated_bonds
