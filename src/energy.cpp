@@ -78,7 +78,7 @@ void Energy::compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F,
     r_ij_transpose= r_ij.transpose();
     //std::cout<<"r_ij vector form:"<<r_ij_transpose<<std::endl;
 
-    coefficient.row(bonds[i].first) << U * (exp(-(2.0*dc)/rho) - 2.0*(exp(-dc)));
+    coefficient.row(bonds[i].first) << U * (exp(-(2.0*dc)/rho) - 2.0*(exp(-dc/rho)));
     coefficient_derivative_x.row(bonds[i].first) << (U/(dc*rho))
                                 *(-exp(-(2.0*dc)/rho) + exp(-dc/rho)) * 2.0 * dx;
     coefficient_derivative_y.row(bonds[i].first) << (U/(dc*rho))

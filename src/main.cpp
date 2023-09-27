@@ -142,7 +142,7 @@ int main() {
     // else {
     //   X0 = parameter.X0, Y0 = parameter.Y0, Z0 = parameter.Z0;
     // }
-    double Z0 = V1.col(2).maxCoeff() + (parameter.particle_position* V2.col(2).maxCoeff());
+    double Z0 = V1.col(2).maxCoeff() + (parameter.particle_position* (V2.col(2).maxCoeff()+1.0*rho));
     Eigen::ArrayXd v2_col = V2.col(2).array();
     v2_col += Z0;
     V2.col(2) = v2_col.matrix();
@@ -328,7 +328,7 @@ int main() {
     //finding pairs and calculating adhesion force between bonds
     if (i % bondfrequency == 0){
       P1.find_pairs(V1, V2,distance_threshold, bonds);
-      std::cout << "bond is updated." << std::endl;
+      //std::cout << "bond is updated." << std::endl;
     }
     //P1.remove_long_bonds(permanent_bonds, V1, V2,distance_threshold);
     P1.remove_long_bonds(bonds, V1, V2,distance_threshold);
