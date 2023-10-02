@@ -40,8 +40,8 @@ void Energy::compute_volumeenergy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, do
     Force_Volume = scalar_term * VG;
   }
 }
-void Energy::compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, Eigen::MatrixXd V_particle, Eigen::MatrixXi F_particle,double rho, double U,double r_equilibrium,double epsilon,double sigma,
-                                           Eigen::MatrixXd& Force_Adhesion,std::vector<std::pair<int, int>> bonds, double& EnergyAdhesion,  Mesh m)
+void Energy::compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, Eigen::MatrixXd V_particle, Eigen::MatrixXi F_particle,double rho, double U,double r_equilibrium,double epsilon,double sigma,double Ew_t, double Kw,
+                                           Eigen::MatrixXd& Force_Adhesion,std::vector<std::pair<int, int>> bonds, double& EnergyAdhesion,double& EnergyBias,  Mesh m)
 {
   Force_Adhesion.setZero();
   coefficient.resize(V.rows());
@@ -124,6 +124,15 @@ void Energy::compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F,
   EnergyAdhesion = Ead.sum();
   Force_Adhesion = Sum;
   }
+
+  if (std::abs(Kw) > EPS) {
+    dEw = EnergyAdhesion - Ew_t;
+    EnergyBias = 0.5 * Kw * dEw * dEw;
+    //Force_Biased = Kw * dEw * (Sum.array().colwise() * Mod_Bias.array());
+    Force_Biased = Kw * dEw * Sum;
+    Force_Adhesion = Sum + Force_Biased;
+  } else Force_Adhesion = Sum; 
+
 }
 
 // void Energy::compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, double X, double Y, double Z,

@@ -27,8 +27,8 @@ class Energy {
   void compute_areaenergy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, double Ka, double area_target, Eigen::MatrixXd& Force_Area, double& area_energy, Mesh m);
   void compute_volumeenergy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, double Kv, double volume_target, Eigen::MatrixXd& Force_Volume, double& volume_energy, Mesh m);
   
-  void compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, Eigen::MatrixXd V_particle, Eigen::MatrixXi F_particle,double rho, double U,double r_equilibrium,double epsilon,double sigma,
-                                           Eigen::MatrixXd& Force_Adhesion,std::vector<std::pair<int, int>> bonds, double& EnergyAdhesion,  Mesh m);
+  void compute_adhesion_energy_force(Eigen::MatrixXd V, Eigen::MatrixXi F, Eigen::MatrixXd V_particle, Eigen::MatrixXi F_particle,double rho, double U,double r_equilibrium,double epsilon,double sigma,double Ew_t, double Kw,
+                                           Eigen::MatrixXd& Force_Adhesion,std::vector<std::pair<int, int>> bonds, double& EnergyAdhesion,double& EnergyBias,  Mesh m);
  // void compute_adhesion_energy_force(Eigen::MatrixXd V,Eigen::MatrixXi F, double X, double Y, double Z,
  //                                    double rp, double rho, double U, double rc, int angle_flag, int particle_position, double Ew_t, double Kw,
  //                                    Eigen::MatrixXd& Force_Adhesion, double& EnergyAdhesion, double& E_bias, Mesh m);

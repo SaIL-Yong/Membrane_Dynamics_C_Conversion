@@ -9,7 +9,7 @@
 
 class ParticleAdhesion {
 public:
-void find_pairs(Eigen::MatrixXd V, Eigen::MatrixXd V_particle,
+void find_pairs(Eigen::MatrixXd V,Eigen::MatrixXi F, Eigen::MatrixXd V_particle,
                 const double distance_threshold, std::vector<std::pair<int, int>>& bonds);
 
 void remove_long_bonds(std::vector<std::pair<int, int>>& bonds, Eigen::MatrixXd& V, Eigen::MatrixXd& V_particle,
