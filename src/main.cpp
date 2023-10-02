@@ -125,6 +125,7 @@ int main() {
     sigma=parameter.sigma;
     rc = 5.0*rho;
     angle_flag = parameter.angle_condition_flag;
+    
 
     if (parameter.particle_position > 0) {
       std::cout<<"Particle position: outside"<<std::endl;
@@ -142,10 +143,13 @@ int main() {
     // else {
     //   X0 = parameter.X0, Y0 = parameter.Y0, Z0 = parameter.Z0;
     // }
+
+    if (parameter.particle_coord_flag==0){//to check if the given mesh would be taken or added
     double Z0 = V1.col(2).maxCoeff() + (parameter.particle_position* (V2.col(2).maxCoeff()+1.0*rho));
     Eigen::ArrayXd v2_col = V2.col(2).array();
     v2_col += Z0;
     V2.col(2) = v2_col.matrix();
+    }
     std::string initialparticle="initialparticle.off";
     igl::writeOFF(initialparticle, V2, F2);   //storing initial particle mesh file
 
@@ -452,13 +456,16 @@ void readParameter()
     runfile >> parameter.particle_position;
     getline(runfile, line);
     getline(runfile, line);
-    if (line.compare("particle_coordinate") == 0) {
-      runfile >> parameter.X0 >> parameter.Y0 >> parameter.Z0;
-      parameter.particle_coord_flag = 1;
-      getline(runfile, line);
-      getline(runfile, line);
-    }
-    else parameter.particle_coord_flag = 0;
+    // if (line.compare("particle_coordinate") == 0) {
+    //   runfile >> parameter.X0 >> parameter.Y0 >> parameter.Z0;
+    //   parameter.particle_coord_flag = 1;
+    //   getline(runfile, line);
+    //   getline(runfile, line);
+    // }
+    // else parameter.particle_coord_flag = 0;
+    runfile >> parameter.particle_coord_flag;
+    getline(runfile, line);
+    getline(runfile, line);
     runfile >> parameter.particle_radius;
     getline(runfile, line);
     getline(runfile, line);

@@ -1,5 +1,5 @@
 iterations
-10000000
+5000000
 dt
 0.01
 Kb
@@ -22,22 +22,32 @@ particle_flag
 1
 particle_position // -1 inside 1 outside
 1
+particle_coord_flag
+1
 particle_radius
 0.3
 adhesion_strength
 2.0
 potential_range
-0.1
+0.01
+r_equilibrium
+0.0
+epsilon
+0
+sigma
+1.0
 angle_condition_flag
 1
 forced_wrapping // 1 ON 0 OFF
-1 
+1
 wrapping_fraction
-0.8
+0.9
 forced_wrapping_constant
-100
+10
 meshfile
-./start.off
+./equilibrated.off
+particlefile
+./initialparticle.off
 outfile
 ./equilibrium.off
 resfile
@@ -50,6 +60,8 @@ resfrequency
 100000
 mesh_reg_frequency
 1
+bondfrequency
+100
 vertex_smoothing_flag
 1
 delaunay_triangulation_flag
