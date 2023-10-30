@@ -8,16 +8,25 @@
 using namespace std::chrono;
 int numV;                                               // number of vertices
 int numF;                                               // number of faces
-Eigen::MatrixXd V,V_mid;                                      // matrix storing vertice coordinates
-Eigen::MatrixXi F;
+Eigen::MatrixXd V1,V2;                                      // matrix storing vertice coordinates
+Eigen::MatrixXi F1,F2;
 Parameter parameter;
 
 int main() {
   // initialization of simulaiton parameters
   readParameter();
-  igl::readOFF(parameter.meshFile, V, F);
-  numF = F.rows();
-  numV = V.rows();
+  igl::readOFF(parameter.meshFile, V1, F1);
+  igl::readOFF(parameter.particleFile, V2, F2);
+  
+  numF = F1.rows();
+  numV = V1.rows();
+  int numFp = F2.rows();
+  int numVp = V2.rows();
+
+  Eigen::VectorXi nearest;              // Nearest neighbor of each vertex in V1 in V2
+  std::vector<std::pair<int, int>> bonds;
+
+  double distance_threshold = 0.1;
 
   // screen and log output of simulation settings
   std::fstream logfile;
@@ -32,13 +41,14 @@ int main() {
   int iterations = parameter.iterations;
   int logfrequency = parameter.logfrequency;
   int dumpfrequency = parameter.dumpfrequency;
+  int bondfrequency=parameter.bondfrequency;
   int resfrequency = parameter.resfrequency;
   double dt = parameter.dt, time = 0.0;
   double tolerance = parameter.tolerance;
   double force_residual;
   int tolerance_flag = parameter.tolerance_flag;
   double tolfrequency = parameter.tolfrequency;
-  int tolsteps = floor(tolfrequency/dt);
+  int tolsteps = floor(tolfrequency / dt);
   int tolmean_steps = floor(tolsteps/logfrequency);
   Eigen::VectorXd etol;
   etol.resize(floor(iterations/logfrequency));
@@ -46,6 +56,7 @@ int main() {
 
   std::cout<<"Mesh info:"<<std::endl;
   std::cout<<"Number of vertices: "<<numV<<" Number of faces: "<<numF<<"\n"<<std::endl;
+  std::cout<<"Number of particle vertices: "<<numVp<<" Number of paticle faces: "<<numFp<<"\n"<<std::endl;
   std::cout<<"Max number of iterations: "<<iterations<<std::endl;
   std::cout<<"Log output frequency: "<<logfrequency<<std::endl;
   std::cout<<"Mesh dump frequency: "<<dumpfrequency<<std::endl;
@@ -79,18 +90,15 @@ int main() {
   double area_target = 4*PI*Rv*Rv;
   double volume_target = 0.0;
   double rVol; // true reduced volume
-  double C0 = parameter.C0;
 
   std::cout<<"Vesicle radius: "<<Rv<<std::endl;
   std::cout<<"Membrane drag coefficient: "<<gamma<<std::endl;
   std::cout<<"Membrane bending modulus: "<<Kb<<std::endl;
   std::cout<<"Membrane stretching modulus: "<<Ka<<std::endl;
-  std::cout<<"Membrane spontaneous curvature: "<<C0<<std::endl;
   logfile<<"Vesicle radius: "<<Rv<<std::endl;
   logfile<<"Membrane drag coefficient: "<<gamma<<std::endl;
   logfile<<"Membrane bending modulus: "<<Kb<<std::endl;
   logfile<<"Membrane stretching modulus: "<<Ka<<std::endl;
-  logfile<<"Membrane spontaneous curvature: "<<C0<<std::endl;
 
   if (std::abs(parameter.Kv) > EPS) {
     double rVol_t = parameter.reduced_volume;
@@ -103,32 +111,30 @@ int main() {
   }
 
   // parameters for particle adhesion
-  std::fstream comfile;
   int particle_flag = parameter.particle_flag;
-  double gammap = parameter.gammap;
   int particle_position = parameter.particle_position;
-  double Rp, u, U, rho, rc, X0, Y0, Z0, Ew_t, Kw;
+  double Rp, u, U, rho, rc, X0, Y0, Z0, Ew_t, Kw,r_equilibrium,epsilon,sigma;
   int angle_flag;
-  Eigen::RowVector3d particle_center, particle_center_mid, particle_force, particle_vel;
-  if (particle_flag) {
-      // output of particle position
-    comfile.open("comfile.txt",std::ios::out);
-    if (comfile.is_open())
-    {
-      comfile<<"Instantaneous position of the particle"<<std::endl;
-    } else {
-      std::cout<<"ERROR: cannot access comfile."<<std::endl;
-    }
 
+  // Declaration and initialization of COM
+  Eigen::Vector3d COM(0.0, 0.0, 0.0);
+  Eigen::MatrixXd signed_distance;  // Matrix to store signed distances
+  Eigen::MatrixXi facet_index;  // Matrix to store facet indices
+  Eigen::MatrixXd closest_points;  // Matrix to store closest points
+  Eigen::MatrixXd normals_closest_points;  // Matrix to store closest normals (if needed)
+  
+
+  if (particle_flag) {
     Rp = parameter.particle_radius;
     u = parameter.adhesion_strength;
     U = (Kb * u) / (Rp * Rp);
     rho =  parameter.potential_range;
+    r_equilibrium=parameter.r_equilibrium;
+    epsilon=parameter.epsilon;
+    sigma=parameter.sigma;
     rc = 5.0*rho;
     angle_flag = parameter.angle_condition_flag;
-
-    std::cout<<"Particle drag coefficient: "<<gammap<<std::endl;
-    logfile<<"Particle drag coefficient: "<<gammap<<std::endl;
+    
 
     if (parameter.particle_position > 0) {
       std::cout<<"Particle position: outside"<<std::endl;
@@ -140,25 +146,37 @@ int main() {
     }
     
     // position of the particle
-    if (!parameter.particle_coord_flag) {
-      X0 = 0.0, Y0 = 0.0, Z0 = V.col(2).maxCoeff() + parameter.particle_position * (Rp + 1.0*rho);
-    }
-    else {
-      X0 = parameter.X0, Y0 = parameter.Y0, Z0 = parameter.Z0;
-    }
+    // if (!parameter.particle_coord_flag) {
+    //   X0 = 0.0, Y0 = 0.0, Z0 = V1.col(2).maxCoeff() + parameter.particle_position * (Rp + 1.0*rho);
+    // }
+    // else {
+    //   X0 = parameter.X0, Y0 = parameter.Y0, Z0 = parameter.Z0;
+    // }
 
-    particle_center<<X0, Y0, Z0;
+    if (parameter.particle_coord_flag==0){//to check if the given mesh would be taken or added
+    double Z0 = V1.col(2).maxCoeff() + (parameter.particle_position* (V2.col(2).maxCoeff()+1.0*rho));
+    Eigen::ArrayXd v2_col = V2.col(2).array();
+    v2_col += Z0;
+    V2.col(2) = v2_col.matrix();
+    }
+    std::string initialparticle="initialparticle.off";
+    igl::writeOFF(initialparticle, V2, F2);   //storing initial particle mesh file
+    igl::centroid(V2, F2, COM);
 
-    std::cout<<"Particle position: "<<X0<<", "<<Y0<<", "<<Z0<<std::endl;
-    std::cout<<"Particle radius: "<<Rp<<std::endl;
+
+
+    std::cout<<"Particle position: "<<COM(0)<<", "<<COM(1)<<", "<<COM(2)<<std::endl;
+    //std::cout<<"Particle radius: "<<Rp<<std::endl;
     std::cout<<"Particle adhesion strength: "<<U<<std::endl;
     std::cout<<"Particle adhesion range: "<<rho<<std::endl;   
     std::cout<<"Particle adhesion cutoff: "<<rc<<std::endl;
-    logfile<<"Particle position: "<<X0<<", "<<Y0<<", "<<Z0<<std::endl;
-    logfile<<"Particle radius: "<<Rp<<std::endl;
+    std::cout<<"distance threshold: "<<distance_threshold<<std::endl;
+    logfile<<"Particle position: "<<COM(0)<<", "<<COM(1)<<", "<<COM(2)<<std::endl;
+    //logfile<<"Particle radius: "<<Rp<<std::endl;
     logfile<<"Particle adhesion strength: "<<U<<std::endl;
     logfile<<"Particle adhesion range: "<<rho<<std::endl;   
     logfile<<"Particle adhesion cutoff: "<<rc<<std::endl;
+    logfile<<"distance threshold: "<<distance_threshold<<std::endl;
     if (angle_flag) {
       std::cout<<"Angle criterion: ON\n"<<std::endl;
       logfile<<"Angle criterion: ON\n"<<std::endl;
@@ -207,7 +225,10 @@ int main() {
     std::cout<<"Mesh regularization frequency: "<<mesh_reg_frequency<<"\n"<<std::endl;
     logfile<<"Mesh regularization frequency: "<<mesh_reg_frequency<<"\n"<<std::endl;
   }
-
+  
+  // Calculate the distances between each pair of vertices
+  ParticleAdhesion P1;
+  //P1.find_pairs(V1, F1, V2, F2, distance_threshold, bonds);
   Mesh M1;
   Energy E1;
 
@@ -233,17 +254,25 @@ int main() {
   // initiate screen output
   if (particle_flag) std::cout<<"Iteration  ReducedVolume  BendingEnergy  AdhesionEnergy  TotalEnergy  EnergyChangeRate  ForceResidual"<<std::endl;
   else std::cout<<"Iteration  ReducedVolume  BendingEnergy  TotalEnergy  EnergyChangeRate  ForceResidual"<<std::endl;
-
+  //P1.find_pairs(V1, F1, V2, F2, distance_threshold, bonds);
+  //std::cout << "bond is updated." << std::endl;
   // main loop
   int i;
   int toln = 0;
   for (i = 0; i < iterations; i++)
   {
-    M1.mesh_cal(V, F, C0);
-    E1.compute_bendingenergy_force(V, F, Kb, C0, Force_Bending, EnergyBending, M1);
-    E1.compute_areaenergy_force(V, F, Ka, area_target, Force_Area, EnergyArea, M1);
-    E1.compute_volumeenergy_force(V, F, Kv, volume_target, Force_Volume, EnergyVolume, M1);
-    if (particle_flag) E1.compute_adhesion_energy_force(V, F, particle_center, Rp, rho, U, rc, angle_flag, particle_position, Ew_t, Kw, Force_Adhesion, EnergyAdhesion, EnergyBias, particle_force, M1);
+    M1.mesh_cal(V1, F1);
+    E1.compute_bendingenergy_force(V1, F1, Kb, Force_Bending, EnergyBending, M1);
+    E1.compute_areaenergy_force(V1, F1, Ka, area_target, Force_Area, EnergyArea, M1);
+    E1.compute_volumeenergy_force(V1, F1, Kv, volume_target, Force_Volume, EnergyVolume, M1);
+    //finding pairs and calculating adhesion force between bonds
+    // if (i % bondfrequency == 0){
+    //   P1.find_pairs(V1, F1, V2, F2, distance_threshold, bonds);
+    //   std::cout << "bond is updated." << std::endl;
+    // }
+    // P1.remove_long_bonds(bonds, V1, V2,distance_threshold);
+    E1.compute_adhesion_energy_force(V1, F1, closest_points, rho, U,r_equilibrium,epsilon,sigma,  Ew_t, Kw,Force_Adhesion,bonds, EnergyAdhesion,EnergyBias, M1);
+    //if (particle_flag) E1.compute_adhesion_energy_force(V1, F1, X0, Y0, Z0, Rp, rho, U, rc, angle_flag, particle_position, Ew_t, Kw, Force_Adhesion, EnergyAdhesion, EnergyBias, M1);
 
     EnergyTotal = EnergyBending + EnergyArea + EnergyVolume + EnergyAdhesion + EnergyBias;
     Force_Total = Force_Bending + Force_Area + Force_Volume + Force_Adhesion;
@@ -254,7 +283,7 @@ int main() {
     if (i % logfrequency == 0) {
       EnergyChangeRate_log = (EnergyTotal - EnergyTotalold_log) / (logfrequency * dt);
       EnergyTotalold_log = EnergyTotal;
-      etol(toln++) = std::abs(EnergyChangeRate_log);
+      etol(toln++) = EnergyChangeRate_log;
 
       // screen output
       if (particle_flag)
@@ -277,8 +306,10 @@ int main() {
       logfile<<EnergyTotal<<"  ";
       logfile<<EnergyChangeRate_log<<"  ";
       logfile<<force_residual<<std::endl;
+    }
 
-      if (i > tolsteps) {
+    if (i % tolsteps == 0) {
+      if (i != 0) {
         EnergyChangeRate_avg = etol(Eigen::seq(toln-1-tolmean_steps,toln-1)).mean();
 
         if (std::abs(EnergyChangeRate_avg) < tolerance && tolerance_flag) {
@@ -292,26 +323,53 @@ int main() {
     if (i % dumpfrequency == 0) {
       char dumpfilename[128];
       sprintf(dumpfilename, "dump%08d.off", i);
-      igl::writeOFF(dumpfilename, V, F);
-      if (particle_flag) {
-        comfile<<i<<"  ";
-        comfile<<particle_center(0)<<"  "<<particle_center(1)<<"  "<<particle_center(2)<<std::endl;
-      }
-    }
+	    igl::writeOFF(dumpfilename, V1, F1);
+  //     char forcefilename[128];
+  //     sprintf(forcefilename, "adhesion%08d.txt", i);
+  //     std::ofstream file1(forcefilename);
+  // // Check if the file was successfully opened
+  //     if (file1.is_open()) {
+  //     file1 << Force_Adhesion << std::endl;
+  //     file1.close();
+  //     std::cout << "Adhesion force successfully saved to file." << std::endl;
+  //     }
+  //     else {
+  //     std::cout << "Error: cannot open adhesion force file." <<std::endl;
+  //      }
+	  }
 
-    if (i % resfrequency == 0) igl::writeOFF(parameter.resFile, V, F);
+    if (i % resfrequency == 0) igl::writeOFF(parameter.resFile, V1, F1);
+
+    //finding pairs and calculating adhesion force between bonds
+    if (i % bondfrequency == 0){
+      igl::signed_distance(V1, V2, F2, igl::SIGNED_DISTANCE_TYPE_PSEUDONORMAL, signed_distance, facet_index, closest_points, normals_closest_points);
+    // std::ofstream outfile("signed_distances.txt");
+    // if (outfile.is_open()) {
+    //     outfile << "Signed Distances:\n" << signed_distance << "\n\n";
+    //     outfile << "Facet Indices:\n" << facet_index << "\n\n";
+    //     outfile << "Closest Points:\n" << closest_points << "\n\n";
+    //     outfile << "Closest Normals:\n" << normals_closest_points << "\n";
+    //     outfile.close();
+    //     std::cout << "Data saved to 'signed_distances.txt'." << std::endl;
+    // } else {
+    //     std::cerr << "Unable to open the output file." << std::endl;
+    //}
+      P1.find_pairs(V1, F1,closest_points,signed_distance,distance_threshold,COM,bonds);
+      //std::cout << "bond is updated." << std::endl;
+    }
+   
+    P1.remove_long_bonds(bonds, V1, closest_points,distance_threshold);
+    
 
     velocity = Force_Total / gamma;
-    particle_vel = particle_force / gammap;
-    V += velocity * dt;
-    particle_center += particle_vel * dt;
+    V1 += velocity * dt;
 
     if (v_smooth_flag || delaunay_tri_flag) {
       if ((i+1) % mesh_reg_frequency == 0) {
-        if (v_smooth_flag) V = M1.vertex_smoothing(V, F);
+        if (v_smooth_flag) V1 = M1.vertex_smoothing(V1, F1);
         if (delaunay_tri_flag) {
-          igl::edge_lengths(V, F, l);
-          igl::intrinsic_delaunay_triangulation(l, F, l, F);
+          igl::edge_lengths(V1, F1, l);
+          igl::intrinsic_delaunay_triangulation(l, F1, l, F1);
         }
       }
     }
@@ -321,10 +379,10 @@ int main() {
   }
 
   if ((i+1) == iterations) std::cout<<"Simulation reaches max iterations."<<std::endl;
-  if (particle_flag) comfile.close();
 
   auto end = system_clock::now();
   auto duration = duration_cast<minutes>(end - start);
+  //main loop ends here
 
   // logfile output
   logfile<<i<<"  ";
@@ -344,7 +402,7 @@ int main() {
   logfile<<"Total run time: "<<duration.count()<<" mins"<<std::endl;
   logfile.close();
       
-  igl::writeOFF(parameter.outFile, V, F);
+  igl::writeOFF(parameter.outFile, V1, F1);
 
   //Storing force components to text file after equilibrium
   std::ofstream file1("Adhesion_Force.txt");
@@ -402,9 +460,6 @@ void readParameter()
   runfile >> parameter.reduced_volume;
   getline(runfile, line);
   getline(runfile, line);
-  runfile >> parameter.C0;
-  getline(runfile, line);
-  getline(runfile, line);
   runfile >> parameter.tolerance;
   getline(runfile, line);
   getline(runfile, line);
@@ -421,19 +476,19 @@ void readParameter()
   getline(runfile, line);
   if (parameter.particle_flag) {
     getline(runfile, line);
-    runfile >> parameter.gammap;
-    getline(runfile, line);
-    getline(runfile, line);
     runfile >> parameter.particle_position;
     getline(runfile, line);
     getline(runfile, line);
-    if (line.compare("particle_coordinate") == 0) {
-      runfile >> parameter.X0 >> parameter.Y0 >> parameter.Z0;
-      parameter.particle_coord_flag = 1;
-      getline(runfile, line);
-      getline(runfile, line);
-    }
-    else parameter.particle_coord_flag = 0;
+    // if (line.compare("particle_coordinate") == 0) {
+    //   runfile >> parameter.X0 >> parameter.Y0 >> parameter.Z0;
+    //   parameter.particle_coord_flag = 1;
+    //   getline(runfile, line);
+    //   getline(runfile, line);
+    // }
+    // else parameter.particle_coord_flag = 0;
+    runfile >> parameter.particle_coord_flag;
+    getline(runfile, line);
+    getline(runfile, line);
     runfile >> parameter.particle_radius;
     getline(runfile, line);
     getline(runfile, line);
@@ -441,6 +496,15 @@ void readParameter()
     getline(runfile, line);
     getline(runfile, line);
     runfile >> parameter.potential_range;
+    getline(runfile, line);
+    getline(runfile, line);
+    runfile >> parameter.r_equilibrium;
+    getline(runfile, line);
+    getline(runfile, line);
+    runfile >> parameter.epsilon;
+    getline(runfile, line);
+    getline(runfile, line);
+    runfile >> parameter.sigma;
     getline(runfile, line);
     getline(runfile, line);
     runfile >> parameter.angle_condition_flag;
@@ -458,6 +522,8 @@ void readParameter()
   getline(runfile, line);
   getline(runfile, parameter.meshFile);
   getline(runfile, line);
+  getline(runfile, parameter.particleFile);
+  getline(runfile, line);
   getline(runfile, parameter.outFile);
   getline(runfile, line);
   getline(runfile, parameter.resFile);
@@ -472,6 +538,9 @@ void readParameter()
   getline(runfile, line);
   getline(runfile, line);
   runfile >> parameter.mesh_reg_frequency;
+  getline(runfile, line);
+  getline(runfile, line);
+  runfile >> parameter.bondfrequency;
   getline(runfile, line);
   getline(runfile, line);
   runfile >> parameter.vertex_smoothing_flag;
