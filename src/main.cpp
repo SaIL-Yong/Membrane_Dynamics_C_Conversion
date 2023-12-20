@@ -190,12 +190,15 @@ int main() {
     }
 
     // parameters for forced wrapping
+    Mesh M2;
+    M2.mesh_cal(V2, F2);
+
     Ew_t = 0.0;
     Kw = 0.0;
     if (parameter.forced_wrapping_flag) {
         double chi = parameter.wrapping_fraction;
         Kw = parameter.wrapping_bias_strength;
-        double Area_w_t = chi*4.0*PI*Rp*Rp;
+        double Area_w_t = chi*M2.area_total;
         Ew_t = -U*Area_w_t;
         std::cout<<"Forced wrapping fraction: "<<chi<<std::endl;
         std::cout<<"Forced wrapping strength constant: "<<Kw<<"\n"<<std::endl;
@@ -233,6 +236,7 @@ int main() {
   ParticleAdhesion P1;
   //P1.find_pairs(V1, F1, V2, F2, distance_threshold, bonds);
   Mesh M1;
+
   Energy E1;
 
   Eigen::MatrixXd Force_Area(numV, 3), Force_Volume(numV, 3), Force_Bending(numV, 3), Force_Adhesion(numV, 3), velocity(numV, 3), Force_Total(numV, 3); //force components
