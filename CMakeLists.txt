@@ -27,16 +27,37 @@ list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 option(LIBIGL_GLFW "Build target igl::glfw" OFF)
 include(libigl)
 
+# Find OpenMP
+find_package(OpenMP)
+
+# Add CGAL from the submodule
+#add_subdirectory(extern/cgal)
+
+# Find package CGAL
+#find_package(CGAL REQUIRED COMPONENTS Core)
+
 # Add your project files
 file(GLOB INC_FILES "${PROJECT_SOURCE_DIR}/src/*.h")
 file(GLOB SRC_FILES "${PROJECT_SOURCE_DIR}/src/*.cpp")
 list(REMOVE_ITEM SRC_FILES "${PROJECT_SOURCE_DIR}/src/test.cpp")
 add_executable(${PROJECT_NAME} ${INC_FILES} ${SRC_FILES})
 set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
+
+
+# Link OpenMP
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(${PROJECT_NAME} PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+
 target_link_libraries(${PROJECT_NAME} PUBLIC igl::core)
 if (LIBIGL_GLFW)
   target_link_libraries(${PROJECT_NAME} PUBLIC igl::glfw)
 endif()
+
+# Link CGAL to your project
+#target_link_libraries(${PROJECT_NAME} PUBLIC CGAL::CGAL CGAL::CGAL_Core)
+
 
 # add the binary tree to the search path for include files
 # so that we will find VersionConfig.h
