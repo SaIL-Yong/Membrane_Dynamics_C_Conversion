@@ -279,7 +279,7 @@ int main() {
     // }
     // P1.remove_long_bonds(bonds, V1, V2,distance_threshold);
    
-  igl::signed_distance(V1, V2, F2, igl::SIGNED_DISTANCE_TYPE_PSEUDONORMAL, signed_distance, facet_index, closest_points, normals_closest_points);
+  if(i % bondfrequency == 0 && particle_flag ) igl::signed_distance(V1, V2, F2, igl::SIGNED_DISTANCE_TYPE_PSEUDONORMAL, signed_distance, facet_index, closest_points, normals_closest_points);
   std::ofstream outfile("signed_distance.txt");
   // Check if the file was successfully opened
   if (outfile.is_open()) {
@@ -289,7 +289,7 @@ int main() {
   else {
     std::cout << "Error: cannot open adhesion force file." <<std::endl;
   }
-    E1.compute_adhesion_energy_force(V1, F1, closest_points, rho, U,r_equilibrium,rc,angle_flag,
+  if (particle_flag)  E1.compute_adhesion_energy_force(V1, F1, closest_points, rho, U,r_equilibrium,rc,angle_flag,
                                     particle_position,sigma,  Ew_t, Kw,Force_Adhesion,signed_distance, EnergyAdhesion,EnergyBias, M1);
     //if (particle_flag) E1.compute_adhesion_energy_force(V1, F1, X0, Y0, Z0, Rp, rho, U, rc, angle_flag, particle_position, Ew_t, Kw, Force_Adhesion, EnergyAdhesion, EnergyBias, M1);
 
@@ -344,42 +344,13 @@ int main() {
       char dumpfilename[128];
       sprintf(dumpfilename, "dump%08d.off", i);
 	    igl::writeOFF(dumpfilename, V1, F1);
-  //     char forcefilename[128];
-  //     sprintf(forcefilename, "adhesion%08d.txt", i);
-  //     std::ofstream file1(forcefilename);
-  // // Check if the file was successfully opened
-  //     if (file1.is_open()) {
-  //     file1 << Force_Adhesion << std::endl;
-  //     file1.close();
-  //     std::cout << "Adhesion force successfully saved to file." << std::endl;
-  //     }
-  //     else {
-  //     std::cout << "Error: cannot open adhesion force file." <<std::endl;
-  //      }
+
 	  }
 
     if (i % resfrequency == 0) igl::writeOFF(parameter.resFile, V1, F1);
 
-    //finding pairs and calculating adhesion force between bonds
-    // if (i % bondfrequency == 0){
-    //   igl::signed_distance(V1, V2, F2, igl::SIGNED_DISTANCE_TYPE_PSEUDONORMAL, signed_distance, facet_index, closest_points, normals_closest_points);
-    // // std::ofstream outfile("signed_distances.txt");
-    // // if (outfile.is_open()) {
-    // //     outfile << "Signed Distances:\n" << signed_distance << "\n\n";
-    // //     outfile << "Facet Indices:\n" << facet_index << "\n\n";
-    // //     outfile << "Closest Points:\n" << closest_points << "\n\n";
-    // //     outfile << "Closest Normals:\n" << normals_closest_points << "\n";
-    // //     outfile.close();
-    // //     std::cout << "Data saved to 'signed_distances.txt'." << std::endl;
-    // // } else {
-    // //     std::cerr << "Unable to open the output file." << std::endl;
-    // //}
-    //   P1.find_pairs(V1, F1,closest_points,signed_distance,distance_threshold,COM,bonds);
-    //   //std::cout << "bond is updated." << std::endl;
-    // }
+
    
-    //P1.remove_long_bonds(bonds, V1, closest_points,distance_threshold);
-    
 
     velocity = Force_Total / gamma;
     V1 += velocity * dt;
@@ -516,15 +487,6 @@ void readParameter()
     getline(runfile, line);
     getline(runfile, line);
     runfile >> parameter.potential_range;
-    getline(runfile, line);
-    getline(runfile, line);
-    runfile >> parameter.r_equilibrium;
-    getline(runfile, line);
-    getline(runfile, line);
-    runfile >> parameter.epsilon;
-    getline(runfile, line);
-    getline(runfile, line);
-    runfile >> parameter.sigma;
     getline(runfile, line);
     getline(runfile, line);
     runfile >> parameter.angle_condition_flag;
