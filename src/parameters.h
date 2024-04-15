@@ -19,5 +19,5 @@ struct Parameter {
     int angle_condition_flag;
     double X0, Y0, Z0;
     int particle_coord_flag;
-    double epsilon,sigma;
+    double epsilon,sigma,C0;
 };

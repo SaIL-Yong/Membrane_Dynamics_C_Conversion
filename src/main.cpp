@@ -93,15 +93,18 @@ int main() {
   double area_target = 4*PI*Rv*Rv;
   double volume_target = 0.0;
   double rVol; // true reduced volume
+  double C0 = parameter.C0;
 
   std::cout<<"Vesicle radius: "<<Rv<<std::endl;
   std::cout<<"Membrane drag coefficient: "<<gamma<<std::endl;
   std::cout<<"Membrane bending modulus: "<<Kb<<std::endl;
   std::cout<<"Membrane stretching modulus: "<<Ka<<std::endl;
+  std::cout<<"Membrane spontaneous curvature: "<<C0<<std::endl;
   logfile<<"Vesicle radius: "<<Rv<<std::endl;
   logfile<<"Membrane drag coefficient: "<<gamma<<std::endl;
   logfile<<"Membrane bending modulus: "<<Kb<<std::endl;
   logfile<<"Membrane stretching modulus: "<<Ka<<std::endl;
+  logfile<<"Membrane spontaneous curvature: "<<C0<<std::endl;
 
   if (std::abs(parameter.Kv) > EPS) {
     double rVol_t = parameter.reduced_volume;
@@ -191,7 +194,7 @@ int main() {
 
     // parameters for forced wrapping
     Mesh M2;
-    M2.mesh_cal(V2, F2);
+    M2.mesh_cal(V2, F2,C0);
 
     Ew_t = 0.0;
     Kw = 0.0;
@@ -241,6 +244,7 @@ int main() {
 
   Eigen::MatrixXd Force_Area(numV, 3), Force_Volume(numV, 3), Force_Bending(numV, 3), Force_Adhesion(numV, 3), velocity(numV, 3), Force_Total(numV, 3); //force components
   velocity.setZero();
+  Force_Adhesion.setZero();
   double EnergyVolume = 0.0, EnergyArea = 0.0, EnergyBending = 0.0, EnergyAdhesion = 0.0,  EnergyBias = 0.0,
          EnergyTotal = 0.0, EnergyTotalold_log = 0.0, EnergyChangeRate_log = 0.0, EnergyChangeRate_avg = 0.0;  //energy components
   Eigen::MatrixXd l;
@@ -268,8 +272,8 @@ int main() {
   int toln = 0;
   for (i = 0; i < iterations; i++)
   {
-    M1.mesh_cal(V1, F1);
-    E1.compute_bendingenergy_force(V1, F1, Kb, Force_Bending, EnergyBending, M1);
+    M1.mesh_cal(V1, F1, C0);
+    E1.compute_bendingenergy_force(V1, F1, Kb, C0,Force_Bending, EnergyBending, M1);
     E1.compute_areaenergy_force(V1, F1, Ka, area_target, Force_Area, EnergyArea, M1);
     E1.compute_volumeenergy_force(V1, F1, Kv, volume_target, Force_Volume, EnergyVolume, M1);
     //finding pairs and calculating adhesion force between bonds
@@ -279,7 +283,7 @@ int main() {
     // }
     // P1.remove_long_bonds(bonds, V1, V2,distance_threshold);
    
-  igl::signed_distance(V1, V2, F2, igl::SIGNED_DISTANCE_TYPE_PSEUDONORMAL, signed_distance, facet_index, closest_points, normals_closest_points);
+  if(particle_flag && i%bondfrequency==0){igl::signed_distance(V1, V2, F2, igl::SIGNED_DISTANCE_TYPE_PSEUDONORMAL, signed_distance, facet_index, closest_points, normals_closest_points);
   std::ofstream outfile("signed_distance.txt");
   // Check if the file was successfully opened
   if (outfile.is_open()) {
@@ -288,8 +292,9 @@ int main() {
   }
   else {
     std::cout << "Error: cannot open adhesion force file." <<std::endl;
+    }
   }
-    E1.compute_adhesion_energy_force(V1, F1, closest_points, rho, U,r_equilibrium,rc,angle_flag,
+   if(particle_flag) E1.compute_adhesion_energy_force(V1, F1, closest_points, rho, U,r_equilibrium,rc,angle_flag,
                                     particle_position,sigma,  Ew_t, Kw,Force_Adhesion,signed_distance, EnergyAdhesion,EnergyBias, M1);
     //if (particle_flag) E1.compute_adhesion_energy_force(V1, F1, X0, Y0, Z0, Rp, rho, U, rc, angle_flag, particle_position, Ew_t, Kw, Force_Adhesion, EnergyAdhesion, EnergyBias, M1);
 
@@ -478,6 +483,9 @@ void readParameter()
   getline(runfile, line);
   getline(runfile, line);
   runfile >> parameter.reduced_volume;
+  getline(runfile, line);
+  getline(runfile, line);
+  runfile >> parameter.C0;
   getline(runfile, line);
   getline(runfile, line);
   runfile >> parameter.tolerance;
