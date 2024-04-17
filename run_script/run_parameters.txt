@@ -9,13 +9,9 @@ Ka
 Kv
 2.0
 reduced_volume
-<<<<<<< HEAD
 1.0
 C0
 0.0
-=======
-0.65
->>>>>>> 06e9aa98245a5f7afd56c960ca408afc2482379e
 tolerance
 1.0e-8
 tolerance_flag // 1 ON 0 OFF
@@ -29,7 +25,7 @@ particle_flag
 particle_position // -1 inside 1 outside
 1
 particle_coord_flag //takes the initial particle
-1
+0
 particle_radius
 0.25
 adhesion_strength
@@ -47,7 +43,7 @@ forced_wrapping_constant
 meshfile
 ./equilibrated_biconcave.off
 particlefile
-./hauser_a6_r2_biconcave_flat.off
+./particle_sphere_03.off
 outfile
 ./equilibrium.off
 resfile
@@ -61,7 +57,7 @@ resfrequency
 mesh_reg_frequency
 1
 bondfrequency
-1
+100
 vertex_smoothing_flag
 1
 delaunay_triangulation_flag

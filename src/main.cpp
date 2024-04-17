@@ -283,11 +283,10 @@ int main() {
     // }
     // P1.remove_long_bonds(bonds, V1, V2,distance_threshold);
    
-<<<<<<< HEAD
   if(particle_flag && i%bondfrequency==0){igl::signed_distance(V1, V2, F2, igl::SIGNED_DISTANCE_TYPE_PSEUDONORMAL, signed_distance, facet_index, closest_points, normals_closest_points);
-=======
+
   if(i % bondfrequency == 0 && particle_flag ) igl::signed_distance(V1, V2, F2, igl::SIGNED_DISTANCE_TYPE_PSEUDONORMAL, signed_distance, facet_index, closest_points, normals_closest_points);
->>>>>>> 06e9aa98245a5f7afd56c960ca408afc2482379e
+
   std::ofstream outfile("signed_distance.txt");
   // Check if the file was successfully opened
   if (outfile.is_open()) {
@@ -297,12 +296,10 @@ int main() {
   else {
     std::cout << "Error: cannot open adhesion force file." <<std::endl;
     }
-  }
-<<<<<<< HEAD
-   if(particle_flag) E1.compute_adhesion_energy_force(V1, F1, closest_points, rho, U,r_equilibrium,rc,angle_flag,
-=======
+  }  
+ 
+
   if (particle_flag)  E1.compute_adhesion_energy_force(V1, F1, closest_points, rho, U,r_equilibrium,rc,angle_flag,
->>>>>>> 06e9aa98245a5f7afd56c960ca408afc2482379e
                                     particle_position,sigma,  Ew_t, Kw,Force_Adhesion,signed_distance, EnergyAdhesion,EnergyBias, M1);
     //if (particle_flag) E1.compute_adhesion_energy_force(V1, F1, X0, Y0, Z0, Rp, rho, U, rc, angle_flag, particle_position, Ew_t, Kw, Force_Adhesion, EnergyAdhesion, EnergyBias, M1);
 
